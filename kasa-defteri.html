@@ -349,7 +349,7 @@
       <input id="login-pass" class="form-control" type="password" autocomplete="current-password" placeholder="şifre">
     </div>
     <div id="login-err" class="alert alert-danger" style="display:none"></div>
-    <button class="btn btn-primary" onclick="doLogin()">Giriş Yap</button>
+    <button id="login-btn" class="btn btn-primary">Giriş Yap</button>
   </div>
 </div>
 
@@ -651,6 +651,8 @@ import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
   query, orderBy, where, limit, writeBatch, serverTimestamp, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
 
 // ── CONFIG ──
 const firebaseConfig = {
@@ -1513,18 +1515,7 @@ function showModal(title, body, actions, extra='') {
 }
 
 // enter key on login
-const loginPassInput = document.getElementById('login-pass');
-  if (loginPassInput) {
-    loginPassInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        doLogin();
-      }
-    });
-  }
-</script>
-</body>
-</html>
-document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+document.getElementById('login-btn').addEventListener('click', doLogin);
 
 </script>
 </body>
