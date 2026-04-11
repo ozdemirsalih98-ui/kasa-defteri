@@ -351,13 +351,15 @@
     <div id="login-err" class="alert alert-danger" style="display:none"></div>
     
 
+
 <button
+  id="login-btn"
   type="button"
   class="btn btn-primary"
-  onclick="alert('HTML onclick çalıştı')"
 >
   Giriş Yap
 </button>
+
 
 
 
@@ -724,7 +726,7 @@ window.closeModal = () => document.getElementById('modal').classList.remove('sho
 
 // ── LOGIN ──
 window.doLogin = async () => {
-alert('doLogin çalıştı');
+
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value.trim();
   const errEl = document.getElementById('login-err');
