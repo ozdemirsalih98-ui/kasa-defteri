@@ -708,6 +708,7 @@ window.closeModal = () => document.getElementById('modal').classList.remove('sho
 
 // ── LOGIN ──
 window.doLogin = async () => {
+alert('doLogin çalıştı');
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value.trim();
   const errEl = document.getElementById('login-err');
