@@ -254,23 +254,23 @@
 
     <!-- ANASAYFA -->
     <div class="page active" id="page-ana">
-      <div id="gs-btn-wrap">
+      <div id="kasa-grid">
+        <div class="kasa-card yk" onclick="openDrawer('YK')"><div class="kasa-name">Yazar Kasa</div><div class="kasa-label">YK</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div></div>
+        <div class="kasa-card c" onclick="openDrawer('C')"><div class="kasa-name">Cep</div><div class="kasa-label">C</div><div class="kasa-balance pos" id="bal-c">₺0,00</div></div>
+        <div class="kasa-card p" onclick="openDrawer('P')"><div class="kasa-name">POS</div><div class="kasa-label">P</div><div class="kasa-balance pos" id="bal-p">₺0,00</div></div>
+        <div class="kasa-card b" onclick="openDrawer('B')"><div class="kasa-name">Banka</div><div class="kasa-label">B</div><div class="kasa-balance pos" id="bal-b">₺0,00</div></div>
+        <div class="kasa-card kk kasa-card-wide" onclick="openDrawer('KK')"><div class="kasa-name">Kredi Kartı</div><div class="kasa-label">KK</div><div class="kasa-balance pos" id="bal-kk">₺0,00</div></div>
+      </div>
+      <div class="section-title">Nakit Günlük Özet</div>
+      <div class="card" style="margin-bottom:12px"><div class="card-body" id="nk-ozet"><div class="loader"><div class="spinner"></div></div></div></div>
+      <div class="section-title">Banka Günlük Özet</div>
+      <div class="card" style="margin-bottom:12px"><div class="card-body" id="bk-ozet"><div class="loader"><div class="spinner"></div></div></div></div>
+      <div id="gs-btn-wrap" style="margin-bottom:12px">
         <button class="btn btn-success" onclick="showGsModal()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:18px;height:18px"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
           Gün Sonu Yap
         </button>
       </div>
-      <div id="kasa-grid">
-        <div class="kasa-card yk" onclick="openDrawer('YK')"><div class="kasa-name">YK</div><div class="kasa-label">Yazar Kasa</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div></div>
-        <div class="kasa-card c" onclick="openDrawer('C')"><div class="kasa-name">C</div><div class="kasa-label">Cep</div><div class="kasa-balance pos" id="bal-c">₺0,00</div></div>
-        <div class="kasa-card p" onclick="openDrawer('P')"><div class="kasa-name">P</div><div class="kasa-label">POS</div><div class="kasa-balance pos" id="bal-p">₺0,00</div></div>
-        <div class="kasa-card b" onclick="openDrawer('B')"><div class="kasa-name">B</div><div class="kasa-label">Banka</div><div class="kasa-balance pos" id="bal-b">₺0,00</div></div>
-        <div class="kasa-card kk kasa-card-wide" onclick="openDrawer('KK')"><div class="kasa-name">KK</div><div class="kasa-label">Kredi Kartı</div><div class="kasa-balance pos" id="bal-kk">₺0,00</div></div>
-      </div>
-      <div class="section-title">NK Günlük Özet</div>
-      <div class="card" style="margin-bottom:12px"><div class="card-body" id="nk-ozet"><div class="loader"><div class="spinner"></div></div></div></div>
-      <div class="section-title">BK Günlük Özet</div>
-      <div class="card" style="margin-bottom:12px"><div class="card-body" id="bk-ozet"><div class="loader"><div class="spinner"></div></div></div></div>
       <div class="section-title">Son İşlemler</div>
       <div class="card"><div class="card-body" id="son-islemler" style="padding:0 16px"><div class="loader"><div class="spinner"></div></div></div></div>
     </div>
@@ -442,7 +442,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
-  query, orderBy, where, limit, writeBatch, serverTimestamp, Timestamp, deleteDoc
+  query, orderBy, where, limit, writeBatch, serverTimestamp, Timestamp, deleteDoc, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -495,14 +495,14 @@ window.showModal = function(title,body,actions,extra=''){
 };
 window.closeModal = ()=>document.getElementById('modal').classList.remove('show');
 
-// ── FIX 5: Beni Hatırla ──
+// ── Beni Hatırla + Oturum ──
 const LS_KEY = 'kasa_remember';
+const SESSION_KEY = 'kasa_session'; // oturumu canlı tut
 function loadRemembered(){
   try {
     const s=localStorage.getItem(LS_KEY);
     if(s){
       const d=JSON.parse(s);
-      // Eski format ({u} sadece) varsa temizle — şifre yoksa işe yaramaz
       if(!d.p){ localStorage.removeItem(LS_KEY); return; }
       // setTimeout: tarayıcı autofill'ini geçersiz kılmak için 150ms bekle
       setTimeout(()=>{
@@ -515,7 +515,42 @@ function loadRemembered(){
 }
 function saveRemembered(u,p){ try{ localStorage.setItem(LS_KEY,JSON.stringify({u,p})); }catch(e){} }
 function clearRemembered(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
-loadRemembered();
+
+// Oturum yönetimi: giriş yapıldıysa sayfa yenilenmesinde tekrar login ekranı çıkmasın
+function saveSession(u){ try{ sessionStorage.setItem(SESSION_KEY,u); }catch(e){} }
+function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
+
+async function tryAutoLogin(){
+  // 1) sessionStorage'da aktif oturum var mı?
+  try{
+    const su=sessionStorage.getItem(SESSION_KEY);
+    if(su){ state.kullanici=su; await initApp(); return; }
+  }catch(e){}
+  // 2) "Beni hatırla" ile kaydedilmiş kullanıcı var mı? Varsa otomatik giriş yap
+  try{
+    const s=localStorage.getItem(LS_KEY);
+    if(s){
+      const d=JSON.parse(s);
+      if(d.u&&d.p){
+        // Firebase'den doğrula
+        const snap=await getDoc(doc(db,'config','kullanicilar'));
+        const liste=snap.exists()?(snap.data().liste||[]):[];
+        const found=liste.find(x=>x.ad===d.u&&String(x.sifre)===d.p);
+        if(found){
+          state.kullanici=d.u;
+          saveSession(d.u);
+          document.getElementById('login-screen').style.display='none';
+          await initApp();
+          return;
+        }
+      }
+    }
+  }catch(e){}
+  // 3) Otomatik giriş olmadı — login ekranını göster
+  loadRemembered();
+}
+
+tryAutoLogin();
 
 // ── LOGIN ──
 window.doLogin = async () => {
@@ -532,12 +567,15 @@ window.doLogin = async () => {
     if(!found){ errEl.textContent='Kullanıcı adı veya şifre yanlış.'; errEl.style.display='flex'; return; }
     state.kullanici=u;
     if(remember) saveRemembered(u,p); else clearRemembered();
+    saveSession(u);
     document.getElementById('login-screen').style.display='none';
     await initApp();
   } catch(e){ errEl.textContent='Bağlantı hatası: '+e.message; errEl.style.display='flex'; }
 };
 
 // ── INIT ──
+let _unsubIslemler=null, _unsubGunluk=null;
+
 async function initApp(){
   document.getElementById('user-info').textContent=state.kullanici;
   await loadConfig();
@@ -552,6 +590,57 @@ async function initApp(){
   loadStok();
   populateIslemForm();
   initDateInputs();
+  startRealtimeListeners();
+}
+
+// Realtime dinleyiciler — başka cihazdan değişiklik olunca otomatik güncelle
+let _rtThrottle=null;
+function startRealtimeListeners(){
+  if(_unsubIslemler) _unsubIslemler();
+  if(_unsubGunluk) _unsubGunluk();
+
+  // islemler koleksiyonunu dinle
+  _unsubIslemler=onSnapshot(
+    query(collection(db,'islemler'),orderBy('zaman','desc')),
+    snap=>{
+      state.allIslemler=snap.docs.map(d=>({id:d.id,...d.data()}));
+      // aktif GB'den sonrakileri filtrele
+      if(state.aktifGB){
+        const gbSn=state.aktifGB.zaman?.seconds||0;
+        state.islemler=state.allIslemler.filter(i=>(i.zaman?.seconds||0)>gbSn);
+      }
+      scheduleRtRender();
+    },
+    err=>console.warn('islemler listener err',err)
+  );
+
+  // gunluk koleksiyonunu dinle
+  _unsubGunluk=onSnapshot(
+    query(collection(db,'gunluk'),orderBy('zaman','desc'),limit(100)),
+    snap=>{
+      state.gunluk=snap.docs.map(d=>({id:d.id,...d.data()}));
+      const lastGB=state.gunluk.find(g=>g.tur==='GB');
+      const lastGS=state.gunluk.find(g=>g.tur==='GS');
+      state.aktifGB=lastGB||null;
+      state.aktifGS=(lastGS&&lastGB&&lastGS.zaman?.seconds>lastGB.zaman?.seconds)?lastGS:null;
+      updateGbBadge();
+      // islemler state'ini de güncelle
+      if(state.aktifGB){
+        const gbSn=state.aktifGB.zaman?.seconds||0;
+        state.islemler=state.allIslemler.filter(i=>(i.zaman?.seconds||0)>gbSn);
+      }
+      scheduleRtRender();
+    },
+    err=>console.warn('gunluk listener err',err)
+  );
+}
+
+function scheduleRtRender(){
+  // Çok sık tetiklenmesin, 500ms throttle
+  if(_rtThrottle) clearTimeout(_rtThrottle);
+  _rtThrottle=setTimeout(()=>{
+    renderApp();
+  },500);
 }
 
 // FIX 4: kategoriler {gelir, gider} formatında yükleniyor
@@ -962,6 +1051,26 @@ window.gbSil=async(gbId)=>{
 window.confirmGbSil=async(gbId)=>{
   closeModal();
   try {
+    const gbKayit=state.gunluk.find(g=>g.id===gbId);
+    if(!gbKayit){showToast('Kayıt bulunamadı.'); return;}
+    const gbSn=gbKayit.zaman?.seconds||0;
+
+    // Bu GB'den sonra GS kaydı var mı?
+    const sonrakiGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)>gbSn);
+    if(sonrakiGS){
+      showModal('Silinemez','Bu gün başı kaydına ait bir gün sonu işlemi var. Önce gün sonunu siliniz.',
+        '<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
+      return;
+    }
+
+    // Bu GB'den sonra herhangi bir işlem var mı?
+    const sonrakiIslem=state.allIslemler.find(i=>(i.zaman?.seconds||0)>gbSn);
+    if(sonrakiIslem){
+      showModal('Silinemez','Bu gün başından sonra girilmiş işlemler var. Önce o işlemleri siliniz.',
+        '<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
+      return;
+    }
+
     await deleteDoc(doc(db,'gunluk',gbId));
     showToast('GB kaydı silindi ✓');
     await loadGunluk(); await loadAllIslemler(); await loadIslemler();
@@ -1365,7 +1474,18 @@ window.islemCsvExport=async()=>{
   let rows=snap.docs.map(d=>d.data()).filter(i=>i.tur!=='yk_gider_gelir');
   if(state.csvTur!=='hepsi') rows=rows.filter(i=>i.tur===state.csvTur||(state.csvTur==='transfer'&&i.tur==='transfer_alici'));
   const header='tarih,gb_tarihi,islem_turu,kasa,kategori,aciklama,tutar,kullanici\n';
-  const csv=header+rows.map(i=>[fmtDate(i.zaman),i.gb_tarihi||'',i.tur,i.kasa||i.kasadan+'>'+i.kasaya,i.kategori||'',`"${(i.aciklama||'').replace(/"/g,'""')}"`,i.tutar,i.kullanici].join(',')).join('\n');
+  const csv=header+rows.map(i=>{
+    // Timestamp'i güvenli çevir
+    let tarihStr='';
+    if(i.zaman){
+      try{
+        const d=i.zaman.toDate?i.zaman.toDate():(i.zaman.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));
+        tarihStr=d.toLocaleDateString('tr-TR');
+      }catch(e){}
+    }
+    const kasa=i.kasa||(i.kasadan&&i.kasaya?(i.kasadan+'>'+i.kasaya):'');
+    return [tarihStr,i.gb_tarihi||'',i.tur,kasa,i.kategori||'',`"${(i.aciklama||'').replace(/"/g,'""')}"`,i.tutar||0,i.kullanici||''].join(',');
+  }).join('\n');
   downloadCsv(csv,`islemler_${start}_${end}.csv`);
 };
 
