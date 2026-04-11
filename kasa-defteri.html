@@ -658,13 +658,17 @@
 </div>
 
 <!-- Firebase SDK -->
-<script type="module">
+<script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {
-  getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc,
-  query, orderBy, where, limit, writeBatch, serverTimestamp, Timestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('login-btn').addEventListener('click', () => {
+    alert('JS ARTIK ÇALIŞIYOR');
+  });
+});
+
+
+
 
 window.onerror = function (msg, src, line, col) {
   alert('JS HATASI:\n' + msg + '\nSatır: ' + line);
