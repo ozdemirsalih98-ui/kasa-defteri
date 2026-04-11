@@ -503,9 +503,12 @@ function loadRemembered(){
       const d=JSON.parse(s);
       // Eski format ({u} sadece) varsa temizle — şifre yoksa işe yaramaz
       if(!d.p){ localStorage.removeItem(LS_KEY); return; }
-      document.getElementById('login-user').value=d.u||'';
-      document.getElementById('login-pass').value=d.p||'';
-      document.getElementById('login-remember').checked=true;
+      // setTimeout: tarayıcı autofill'ini geçersiz kılmak için 150ms bekle
+      setTimeout(()=>{
+        document.getElementById('login-user').value=d.u||'';
+        document.getElementById('login-pass').value=d.p||'';
+        document.getElementById('login-remember').checked=true;
+      },150);
     }
   } catch(e){ localStorage.removeItem(LS_KEY); }
 }
@@ -658,12 +661,14 @@ window.doGS=async()=>{
       batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gb_tarihi:gbTarih});
       batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gb_tarihi:gbTarih});
       await batch1.commit();
-      // State'i güncelle ki ozet hesabı güncel olsun
+      // State'i güncelle ama ciro hesabı için gs_transfer'ları ÇIKAR
       await loadAllIslemler(); await loadIslemler();
     }
 
-    // ADIM 2: Özeti hesapla ve GS kaydını yaz
+    // ADIM 2: Özeti hesapla — gs_transfer işlemleri hesaplaGunOzeti içinde zaten hariç tutuluyor
     const ozet=hesaplaGunOzeti();
+
+    // ADIM 3: GS kaydını yaz
     await addDoc(collection(db,'gunluk'),{tur:'GS',tarih:gbTarih,zaman:serverTimestamp(),kullanici:state.kullanici,ozet});
 
     showToast('Gün sonu yapıldı ✓');
@@ -697,9 +702,10 @@ function hesaplaGunOzeti(){
   for(const i of is){
     if(i.tur==='gelir'&&i.kasa==='YK') ciro+=i.tutar;
     if(i.tur==='yk_gider_gelir'&&i.kasa==='YK') ciro+=i.tutar;
-    // günsonu transferleri (gs_transfer veya aciklama==='günsonu') ciro'ya dahil edilmez
-    if(i.tur==='transfer'&&i.kasadan==='YK'&&!i.gs_transfer&&i.aciklama!=='günsonu') ciro+=i.tutar;
-    if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!i.gs_transfer&&i.aciklama!=='günsonu') ciro-=i.tutar;
+    // günsonu transferleri ciro'ya dahil edilmez (gs_transfer flag veya aciklama=günsonu)
+    const isGsTransfer=(i.gs_transfer===true||i.aciklama==='günsonu');
+    if(i.tur==='transfer'&&i.kasadan==='YK'&&!isGsTransfer) ciro+=i.tutar;
+    if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!isGsTransfer) ciro-=i.tutar;
     if(i.tur==='gider'&&i.kasa==='YK') ykGider+=i.tutar;
     if(i.tur==='gider'&&i.kasa==='C') cepGider+=i.tutar;
     if(i.tur==='gelir'&&i.kasa==='P') posCiro+=i.tutar;
@@ -888,17 +894,37 @@ function renderGunsonlariTab(el){
     .sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0))
     .slice(0,10);
   if(!gsKayitlar.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz gün sonu kaydı yok</div>';return;}
-  el.innerHTML=gsKayitlar.map(g=>`
-    <div class="card" style="margin-bottom:8px;border-left:4px solid var(--green)">
-      <div class="card-body" style="display:flex;align-items:center;gap:12px">
-        <div class="islem-icon transfer">✅</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:800;font-size:14px">Gün Sonu — ${g.tarih||''}</div>
-          <div style="font-size:12px;color:var(--text2)">${g.kullanici||''} • Ciro: ${fmt(g.ozet?.ciro)} • Gider: ${fmt(g.ozet?.toplamGider)}</div>
+  el.innerHTML=gsKayitlar.map(g=>{
+    const ciro=g.ozet?.ciro||0;
+    const gider=g.ozet?.toplamGider||0;
+    const sonuc=ciro-gider;
+    return `<div class="card" style="margin-bottom:8px;border-left:4px solid var(--green)">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="islem-icon transfer" style="background:var(--green-bg)">✅</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14px">Gün Sonu — ${g.tarih||'—'}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${g.kullanici||''}</div>
+          </div>
+          <button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gsSil('${g.id}')">Sil</button>
         </div>
-        <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="gsSil('${g.id}')">Sil</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;background:var(--surface2);border-radius:8px;padding:8px">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">CİRO</div>
+            <div style="font-size:13px;font-weight:800;color:var(--green);font-family:'Roboto Mono',monospace">${fmt(ciro)}</div>
+          </div>
+          <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">GİDER</div>
+            <div style="font-size:13px;font-weight:800;color:var(--red);font-family:'Roboto Mono',monospace">${fmt(gider)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">SONUÇ</div>
+            <div style="font-size:13px;font-weight:800;color:${sonuc>=0?'var(--green)':'var(--red)'};font-family:'Roboto Mono',monospace">${fmt(sonuc)}</div>
+          </div>
+        </div>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderKasaIslemleriTab(el){
@@ -974,8 +1000,24 @@ window.gsSil=async(gsId)=>{
 window.confirmGsSil=async(gsId)=>{
   closeModal();
   try {
+    // GS kaydını bul
+    const gsKayit=state.gunluk.find(g=>g.id===gsId);
+    // GS kaydını sil
     await deleteDoc(doc(db,'gunluk',gsId));
-    showToast('GS kaydı silindi');
+    // Bu GS'a ait günsonu transfer kayıtlarını da sil (gs_transfer:true ve aynı gb_tarihi)
+    if(gsKayit&&gsKayit.tarih){
+      const gsTransferSnap=await getDocs(query(
+        collection(db,'islemler'),
+        where('gs_transfer','==',true),
+        where('gb_tarihi','==',gsKayit.tarih)
+      ));
+      if(!gsTransferSnap.empty){
+        const batch=writeBatch(db);
+        gsTransferSnap.docs.forEach(d=>batch.delete(d.ref));
+        await batch.commit();
+      }
+    }
+    showToast('GS kaydı ve transferleri silindi');
     await loadGunluk(); await loadAllIslemler(); await loadIslemler();
     renderApp(); renderIslemlerPage();
   } catch(e){showToast('Hata: '+e.message);}
@@ -1241,9 +1283,10 @@ window.loadRapor=async()=>{
     });
     let ciro=0,topGider=0,posCiro=0;
     for(const i of gbIs){
+      const isGsTransfer=(i.gs_transfer===true||i.aciklama==='günsonu');
       if((i.tur==='gelir'||i.tur==='yk_gider_gelir')&&i.kasa==='YK') ciro+=i.tutar;
-      if(i.tur==='transfer'&&i.kasadan==='YK'&&!i.gs_transfer) ciro+=i.tutar;
-      if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!i.gs_transfer) ciro-=i.tutar;
+      if(i.tur==='transfer'&&i.kasadan==='YK'&&!isGsTransfer) ciro+=i.tutar;
+      if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!isGsTransfer) ciro-=i.tutar;
       if(i.tur==='gider'&&(i.kasa==='YK'||i.kasa==='C')) topGider+=i.tutar;
       if(i.tur==='gelir'&&i.kasa==='P') posCiro+=i.tutar;
     }
@@ -1323,7 +1366,14 @@ window.goPage=page=>{
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   document.getElementById('nav-'+page).classList.add('active');
-  if(page==='islemler') renderIslemlerPage();
+  if(page==='islemler'){
+    // state.gunluk yüklü değilse yükle, sonra render et
+    if(!state.gunluk.length){
+      loadGunluk().then(()=>renderIslemlerPage());
+    } else {
+      renderIslemlerPage();
+    }
+  }
   if(page==='stok') renderStok();
 };
 
