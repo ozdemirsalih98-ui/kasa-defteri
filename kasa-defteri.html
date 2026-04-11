@@ -325,6 +325,7 @@
       <div class="seg-control" style="margin-bottom:14px">
         <button class="seg-btn active" id="islemler-tab-islemler" onclick="switchIslemlerTab('islemler')">Kasa İşlemleri</button>
         <button class="seg-btn" id="islemler-tab-gunsonlari" onclick="switchIslemlerTab('gunsonlari')">Gün Sonları</button>
+        <button class="seg-btn" id="islemler-tab-gunbaslari" onclick="switchIslemlerTab('gunbaslari')">Gün Başları</button>
       </div>
       <div id="islemler-liste"><div class="loader"><div class="spinner"></div></div></div>
     </div>
@@ -651,25 +652,29 @@ window.doGS=async()=>{
   closeModal();
   try {
     const ykBal=getBakiye('YK');
-    const sharedId=uuid();
+    const transferSharedId=uuid();
     const gbTarih=state.aktifGB.tarih;
 
-    // ADIM 1: Önce YK→C transferini yaz (GS kaydından ÖNCE)
+    // ADIM 1: GS doküman referansını ÖNCEDEN oluştur (id biliniyor olsun)
+    const gsRef=doc(collection(db,'gunluk'));
+    const gsId=gsRef.id;
+
+    // ADIM 2: Önce YK→C transferini yaz — gs_id ile GS'a bağla
     if(ykBal>0){
       const batch1=writeBatch(db);
       const r1=doc(collection(db,'islemler')); const r2=doc(collection(db,'islemler'));
-      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gb_tarihi:gbTarih});
-      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gb_tarihi:gbTarih});
+      batch1.set(r1,{sharedId:transferSharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batch1.set(r2,{sharedId:transferSharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
       await batch1.commit();
-      // State'i güncelle ama ciro hesabı için gs_transfer'ları ÇIKAR
+      // State güncelle (ciro hesabı gs_transfer'ları hariç tutar)
       await loadAllIslemler(); await loadIslemler();
     }
 
-    // ADIM 2: Özeti hesapla — gs_transfer işlemleri hesaplaGunOzeti içinde zaten hariç tutuluyor
+    // ADIM 3: Özeti hesapla
     const ozet=hesaplaGunOzeti();
 
-    // ADIM 3: GS kaydını yaz
-    await addDoc(collection(db,'gunluk'),{tur:'GS',tarih:gbTarih,zaman:serverTimestamp(),kullanici:state.kullanici,ozet});
+    // ADIM 4: GS kaydını önceden oluşturulan ref ile yaz
+    await setDoc(gsRef,{tur:'GS',tarih:gbTarih,zaman:serverTimestamp(),kullanici:state.kullanici,ozet});
 
     showToast('Gün sonu yapıldı ✓');
     await loadGunluk(); await loadAllIslemler(); await loadIslemler(); renderApp();
@@ -877,8 +882,9 @@ let aktifIslemlerTab='islemler';
 
 window.switchIslemlerTab=tab=>{
   aktifIslemlerTab=tab;
-  document.getElementById('islemler-tab-islemler')?.classList.toggle('active',tab==='islemler');
-  document.getElementById('islemler-tab-gunsonlari')?.classList.toggle('active',tab==='gunsonlari');
+  ['islemler','gunsonlari','gunbaslari'].forEach(t=>
+    document.getElementById('islemler-tab-'+t)?.classList.toggle('active',tab===t)
+  );
   renderIslemlerPage();
 };
 
@@ -886,6 +892,7 @@ async function renderIslemlerPage(){
   const el=document.getElementById('islemler-liste');
   el.innerHTML='<div class="loader"><div class="spinner"></div></div>';
   if(aktifIslemlerTab==='gunsonlari') renderGunsonlariTab(el);
+  else if(aktifIslemlerTab==='gunbaslari') renderGunbaslariTab(el);
   else renderKasaIslemleriTab(el);
 }
 
@@ -926,6 +933,41 @@ function renderGunsonlariTab(el){
     </div>`;
   }).join('');
 }
+
+function renderGunbaslariTab(el){
+  const gbKayitlar=state.gunluk.filter(g=>g.tur==='GB')
+    .sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0))
+    .slice(0,10);
+  if(!gbKayitlar.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz gün başı kaydı yok</div>';return;}
+  el.innerHTML=gbKayitlar.map(g=>`
+    <div class="card" style="margin-bottom:8px;border-left:4px solid var(--blue)">
+      <div class="card-body" style="display:flex;align-items:center;gap:12px">
+        <div class="islem-icon" style="background:var(--blue-bg)">🌅</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px">Gün Başı — ${g.tarih||'—'}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${g.kullanici||''} • ${g.zaman?fmtDate(g.zaman):''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gbSil('${g.id}')">Sil</button>
+      </div>
+    </div>`).join('');
+}
+
+window.gbSil=async(gbId)=>{
+  showModal('GB Silme Onayı',
+    '⚠️ Bu gün başı kaydı silinecek. Bu işlemi yalnızca hatalı kayıtlar için yapınız. Emin misiniz?',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-danger" onclick="confirmGbSil('${gbId}')">Evet, Sil</button>`
+  );
+};
+
+window.confirmGbSil=async(gbId)=>{
+  closeModal();
+  try {
+    await deleteDoc(doc(db,'gunluk',gbId));
+    showToast('GB kaydı silindi ✓');
+    await loadGunluk(); await loadAllIslemler(); await loadIslemler();
+    renderApp(); renderIslemlerPage();
+  } catch(e){showToast('Hata: '+e.message);}
+};
 
 function renderKasaIslemleriTab(el){
   const gsZamanlar=state.gunluk.filter(g=>g.tur==='GS'&&g.zaman).map(g=>g.zaman.seconds);
@@ -1000,24 +1042,30 @@ window.gsSil=async(gsId)=>{
 window.confirmGsSil=async(gsId)=>{
   closeModal();
   try {
-    // GS kaydını bul
     const gsKayit=state.gunluk.find(g=>g.id===gsId);
     // GS kaydını sil
     await deleteDoc(doc(db,'gunluk',gsId));
-    // Bu GS'a ait günsonu transfer kayıtlarını da sil (gs_transfer:true ve aynı gb_tarihi)
-    if(gsKayit&&gsKayit.tarih){
-      const gsTransferSnap=await getDocs(query(
+    // Bu GS'a ait transfer kayıtlarını sil:
+    // Önce gs_id ile dene (yeni kayıtlar), sonra gs_transfer+gb_tarihi ile dene (eski kayıtlar)
+    const toDelete=new Set();
+    // 1) gs_id eşleşmesi
+    const byGsId=await getDocs(query(collection(db,'islemler'),where('gs_id','==',gsId)));
+    byGsId.docs.forEach(d=>toDelete.add(d.ref));
+    // 2) eski kayıtlar: gs_transfer:true + aynı tarih
+    if(gsKayit?.tarih){
+      const byTarih=await getDocs(query(
         collection(db,'islemler'),
         where('gs_transfer','==',true),
         where('gb_tarihi','==',gsKayit.tarih)
       ));
-      if(!gsTransferSnap.empty){
-        const batch=writeBatch(db);
-        gsTransferSnap.docs.forEach(d=>batch.delete(d.ref));
-        await batch.commit();
-      }
+      byTarih.docs.forEach(d=>toDelete.add(d.ref));
     }
-    showToast('GS kaydı ve transferleri silindi');
+    if(toDelete.size>0){
+      const batch=writeBatch(db);
+      toDelete.forEach(ref=>batch.delete(ref));
+      await batch.commit();
+    }
+    showToast('GS kaydı ve transferleri silindi ✓');
     await loadGunluk(); await loadAllIslemler(); await loadIslemler();
     renderApp(); renderIslemlerPage();
   } catch(e){showToast('Hata: '+e.message);}
