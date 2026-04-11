@@ -349,7 +349,7 @@
       <input id="login-pass" class="form-control" type="password" autocomplete="current-password" placeholder="şifre">
     </div>
     <div id="login-err" class="alert alert-danger" style="display:none"></div>
-    <button class="btn btn-primary" onclick="doLogin()">Giriş Yap</button>
+   <button id="login-btn" class="btn btn-primary">Giriş Yap</button>
   </div>
 </div>
 
@@ -1503,7 +1503,6 @@ function initDateInputs() {
 
 // ── GB MODAL fix ──
 // Override showModal to support extra in middle
-const _origShowModal = showModal;
 function showModal(title, body, actions, extra='') {
   document.getElementById('modal-title').textContent = title;
   document.getElementById('modal-body').innerHTML = body;
@@ -1515,6 +1514,8 @@ function showModal(title, body, actions, extra='') {
 // enter key on login
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('login-pass').focus(); });
+
+document.getElementById('login-btn').addEventListener('click', doLogin);
 
 </script>
 </body>
