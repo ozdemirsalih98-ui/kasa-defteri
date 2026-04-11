@@ -246,7 +246,7 @@
 
   <div id="topbar">
     <div class="logo">💰 Kasa <span>Defteri</span></div>
-    <div id="user-info" onclick="showKullaniciYonetim()" style="cursor:pointer">—</div>
+    <div id="user-info">—</div>
     <div id="gb-badge" class="gb-warn" onclick="handleGbClick()">— GB</div>
   </div>
 
@@ -322,6 +322,11 @@
     <!-- İŞLEMLER -->
     <div class="page" id="page-islemler">
       <h2 style="font-size:20px;font-weight:900;margin-bottom:12px">İşlemler</h2>
+      <div class="seg-control" style="margin-bottom:14px">
+        <button class="seg-btn active" id="islemler-tab-islemler" onclick="switchIslemlerTab('islemler')">Kasa İşlemleri</button>
+        <button class="seg-btn" id="islemler-tab-gunsonlari" onclick="switchIslemlerTab('gunsonlari')">Gün Sonları</button>
+        <button class="seg-btn" id="islemler-tab-gunbaslari" onclick="switchIslemlerTab('gunbaslari')">Gün Başları</button>
+      </div>
       <div id="islemler-liste"><div class="loader"><div class="spinner"></div></div></div>
     </div>
 
@@ -361,50 +366,29 @@
     <!-- RAPOR -->
     <div class="page" id="page-rapor">
       <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Rapor</h2>
-      <!-- Özet Rapor -->
       <div class="card" style="margin-bottom:12px">
-        <div class="card-header">Tarih Aralığı & Filtre</div>
+        <div class="card-header">Tarih Aralığı</div>
         <div class="card-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-            <div><label class="form-label">Başlangıç</label><input class="form-control" id="rapor-start" type="date"></div>
-            <div><label class="form-label">Bitiş</label><input class="form-control" id="rapor-end" type="date"></div>
-          </div>
-          <label class="form-label">Rapor Türü</label>
-          <div class="seg-control" id="rapor-tur-seg" style="margin-bottom:12px">
-            <button class="seg-btn active" data-v="nakit" onclick="setRaporTur(this)">Nakit Kasalar</button>
-            <button class="seg-btn" data-v="banka" onclick="setRaporTur(this)">Banka Kasalar</button>
-            <button class="seg-btn" data-v="tumu" onclick="setRaporTur(this)">Tümü</button>
-          </div>
+          <div class="form-group"><label class="form-label">Başlangıç</label><input class="form-control" id="rapor-start" type="date"></div>
+          <div class="form-group" style="margin-bottom:0"><label class="form-label">Bitiş</label><input class="form-control" id="rapor-end" type="date"></div>
         </div>
         <div style="padding:0 16px 16px"><button class="btn btn-primary" onclick="loadRapor()">Raporu Göster</button></div>
       </div>
       <div id="rapor-sonuc"></div>
-
-      <!-- İşlem Listesi & Export -->
       <div class="card">
-        <div class="card-header">İşlem Listesi & Export</div>
+        <div class="card-header">CSV Export — İşlemler</div>
         <div class="card-body">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-            <div><label class="form-label">Başlangıç</label><input class="form-control" id="islem-csv-start" type="date"></div>
-            <div><label class="form-label">Bitiş</label><input class="form-control" id="islem-csv-end" type="date"></div>
-          </div>
+          <div class="form-group"><label class="form-label">Başlangıç</label><input class="form-control" id="islem-csv-start" type="date"></div>
+          <div class="form-group"><label class="form-label">Bitiş</label><input class="form-control" id="islem-csv-end" type="date"></div>
           <label class="form-label">Tür</label>
-          <div class="seg-control" id="csv-tur-seg" style="margin-bottom:10px">
+          <div class="seg-control" id="csv-tur-seg">
             <button class="seg-btn active" data-v="hepsi" onclick="setCsvTur(this)">Hepsi</button>
             <button class="seg-btn" data-v="gelir" onclick="setCsvTur(this)">Gelir</button>
             <button class="seg-btn" data-v="gider" onclick="setCsvTur(this)">Gider</button>
             <button class="seg-btn" data-v="transfer" onclick="setCsvTur(this)">Transfer</button>
           </div>
-          <div id="csv-kat-wrap" style="display:none;margin-bottom:10px">
-            <label class="form-label">Kategori (boş = tümü)</label>
-            <select class="form-control" id="csv-kategori"><option value="">Tümü</option></select>
-          </div>
         </div>
-        <div style="padding:0 16px 8px"><button class="btn btn-primary" onclick="loadIslemListesi()">Listele</button></div>
-        <div id="islem-listesi-sonuc" style="padding:0 16px 12px"></div>
-        <div id="islem-listesi-export-wrap" style="padding:0 16px 16px;display:none">
-          <button class="btn btn-outline" onclick="islemCsvExport()">CSV İndir</button>
-        </div>
+        <div style="padding:0 16px 16px"><button class="btn btn-outline" onclick="islemCsvExport()">CSV İndir</button></div>
       </div>
     </div>
 
@@ -982,92 +966,79 @@ window.confirmIslemKaydet=async()=>{
   } catch(e){showToast('Hata: '+e.message);}
 };
 
-// ── İşlemler sayfası — tek liste ──
+// ── İşlemler sayfası — 2 sekme ──
+let aktifIslemlerTab='islemler';
+
+window.switchIslemlerTab=tab=>{
+  aktifIslemlerTab=tab;
+  ['islemler','gunsonlari','gunbaslari'].forEach(t=>
+    document.getElementById('islemler-tab-'+t)?.classList.toggle('active',tab===t)
+  );
+  renderIslemlerPage();
+};
 
 async function renderIslemlerPage(){
   const el=document.getElementById('islemler-liste');
   el.innerHTML='<div class="loader"><div class="spinner"></div></div>';
+  if(aktifIslemlerTab==='gunsonlari') renderGunsonlariTab(el);
+  else if(aktifIslemlerTab==='gunbaslari') renderGunbaslariTab(el);
+  else renderKasaIslemleriTab(el);
+}
 
-  // Tüm kayıtları birleştir: islemler + gunluk (GB/GS)
-  const islemler=state.allIslemler.filter(i=>i.tur!=='yk_gider_gelir').map(i=>({...i,_tip:'islem'}));
-  const gunlukKayitlar=state.gunluk.map(g=>({...g,_tip:'gunluk'}));
-  const hepsi=[...islemler,...gunlukKayitlar]
+function renderGunsonlariTab(el){
+  const gsKayitlar=state.gunluk.filter(g=>g.tur==='GS')
     .sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0))
-    .slice(0,50);
-
-  if(!hepsi.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz kayıt yok</div>';return;}
-
-  const gsZamanlar=state.gunluk.filter(g=>g.tur==='GS'&&g.zaman).map(g=>g.zaman.seconds);
-  const aktifKullanici=state.kullanici;
-  const kullaniciSnap=await getDoc(doc(db,'config','kullanicilar')).catch(()=>null);
-  const kullanicilar=kullaniciSnap&&kullaniciSnap.exists()?(kullaniciSnap.data().liste||[]):[];
-  const aktifKullaniciObj=kullanicilar.find(x=>x.ad===aktifKullanici);
-  const isAdmin=aktifKullaniciObj?.admin===true;
-
-  el.innerHTML=hepsi.map(kayit=>{
-    if(kayit._tip==='gunluk'){
-      if(kayit.tur==='GS'){
-        const ciro=kayit.ozet?.ciro||0;
-        const gider=kayit.ozet?.toplamGider||0;
-        const sonuc=ciro-gider;
-        // Silme yetkisi: admin veya kendi kaydı
-        const silYetkisi=isAdmin||(kayit.kullanici===aktifKullanici);
-        // Sonrasında GB var mı kontrolü (render sırasında göster, confirmGsSil zaten kontrol eder)
-        return `<div class="card" style="margin-bottom:8px;border-left:4px solid var(--green)">
-          <div class="card-body">
-            <div style="display:flex;align-items:center;gap:12px">
-              <div class="islem-icon transfer" style="background:var(--green-bg)">✅</div>
-              <div style="flex:1;min-width:0">
-                <div style="font-weight:800;font-size:14px">Gün Sonu — ${kayit.tarih||'—'}</div>
-                <div style="font-size:12px;color:var(--text2);margin-top:2px">${kayit.kullanici||''} • ${kayit.zaman?fmtDate(kayit.zaman):''}</div>
-              </div>
-              ${silYetkisi?`<button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gsSil('${kayit.id}')">Sil</button>`:''}
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;background:var(--surface2);border-radius:8px;padding:8px">
-              <div style="text-align:center"><div style="font-size:10px;color:var(--text3);font-weight:700">CİRO</div><div style="font-size:13px;font-weight:800;color:var(--green);font-family:'Roboto Mono',monospace">${fmt(ciro)}</div></div>
-              <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-weight:700">GİDER</div><div style="font-size:13px;font-weight:800;color:var(--red);font-family:'Roboto Mono',monospace">${fmt(gider)}</div></div>
-              <div style="text-align:center"><div style="font-size:10px;color:var(--text3);font-weight:700">SONUÇ</div><div style="font-size:13px;font-weight:800;color:${sonuc>=0?'var(--green)':'var(--red)'};font-family:'Roboto Mono',monospace">${fmt(sonuc)}</div></div>
-            </div>
+    .slice(0,10);
+  if(!gsKayitlar.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz gün sonu kaydı yok</div>';return;}
+  el.innerHTML=gsKayitlar.map(g=>{
+    const ciro=g.ozet?.ciro||0;
+    const gider=g.ozet?.toplamGider||0;
+    const sonuc=ciro-gider;
+    return `<div class="card" style="margin-bottom:8px;border-left:4px solid var(--green)">
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="islem-icon transfer" style="background:var(--green-bg)">✅</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800;font-size:14px">Gün Sonu — ${g.tarih||'—'}</div>
+            <div style="font-size:12px;color:var(--text2);margin-top:2px">${g.kullanici||''}</div>
           </div>
-        </div>`;
-      } else if(kayit.tur==='GB'){
-        const silYetkisi=isAdmin||(kayit.kullanici===aktifKullanici);
-        return `<div class="card" style="margin-bottom:8px;border-left:4px solid var(--blue)">
-          <div class="card-body" style="display:flex;align-items:center;gap:12px">
-            <div class="islem-icon" style="background:var(--blue-bg)">🌅</div>
-            <div style="flex:1;min-width:0">
-              <div style="font-weight:800;font-size:14px">Gün Başı — ${kayit.tarih||'—'}</div>
-              <div style="font-size:12px;color:var(--text2);margin-top:2px">${kayit.kullanici||''} • ${kayit.zaman?fmtDate(kayit.zaman):''}</div>
-            </div>
-            ${silYetkisi?`<button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gbSil('${kayit.id}')">Sil</button>`:''}
-          </div>
-        </div>`;
-      }
-      return '';
-    }
-    // Kasa işlemi
-    const tur=kayit.tur.startsWith('transfer')?'transfer':kayit.tur;
-    const islemSn=kayit.zaman?.seconds||0;
-    const gsUstune=kayit.gs_transfer||gsZamanlar.some(gs=>gs>=islemSn);
-    const silYetkisi=isAdmin||(kayit.kullanici===aktifKullanici);
-    return `<div class="card" style="margin-bottom:8px">
-      <div class="card-body" style="display:flex;align-items:center;gap:12px">
-        <div class="islem-icon ${tur}">${tur==='gelir'?'💚':tur==='gider'?'🔴':'🔵'}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:800;font-size:14px">${kayit.kategori||'Transfer'}${kayit.gs_transfer?' <span style="font-size:10px;color:var(--text3)">(GS)</span>':''}</div>
-          <div style="font-size:12px;color:var(--text2)">${kayit.gb_tarihi||''} • ${kayit.kasa||((kayit.kasadan||'')+'→'+(kayit.kasaya||''))} • ${kayit.kullanici||''}</div>
-          ${kayit.aciklama?`<div style="font-size:12px;color:var(--text3)">${kayit.aciklama}</div>`:''}
+          <button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gsSil('${g.id}')">Sil</button>
         </div>
-        <div style="text-align:right">
-          <div class="islem-amount ${tur}" style="font-size:15px">${tur==='gider'?'-':''}${fmt(kayit.tutar)}</div>
-          ${silYetkisi&&!gsUstune
-            ?`<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;color:var(--red)" onclick="islemSil('${kayit.sharedId}')">Sil</button>`
-            :gsUstune?`<span style="font-size:10px;color:var(--text3);display:block;margin-top:4px">${kayit.gs_transfer?'GS transferi':'GS yapıldı'}</span>`:''
-          }
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;background:var(--surface2);border-radius:8px;padding:8px">
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">CİRO</div>
+            <div style="font-size:13px;font-weight:800;color:var(--green);font-family:'Roboto Mono',monospace">${fmt(ciro)}</div>
+          </div>
+          <div style="text-align:center;border-left:1px solid var(--border);border-right:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">GİDER</div>
+            <div style="font-size:13px;font-weight:800;color:var(--red);font-family:'Roboto Mono',monospace">${fmt(gider)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:10px;color:var(--text3);font-weight:700">SONUÇ</div>
+            <div style="font-size:13px;font-weight:800;color:${sonuc>=0?'var(--green)':'var(--red)'};font-family:'Roboto Mono',monospace">${fmt(sonuc)}</div>
+          </div>
         </div>
       </div>
     </div>`;
   }).join('');
+}
+
+function renderGunbaslariTab(el){
+  const gbKayitlar=state.gunluk.filter(g=>g.tur==='GB')
+    .sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0))
+    .slice(0,10);
+  if(!gbKayitlar.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz gün başı kaydı yok</div>';return;}
+  el.innerHTML=gbKayitlar.map(g=>`
+    <div class="card" style="margin-bottom:8px;border-left:4px solid var(--blue)">
+      <div class="card-body" style="display:flex;align-items:center;gap:12px">
+        <div class="islem-icon" style="background:var(--blue-bg)">🌅</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px">Gün Başı — ${g.tarih||'—'}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${g.kullanici||''} • ${g.zaman?fmtDate(g.zaman):''}</div>
+        </div>
+        <button class="btn btn-danger btn-sm" style="font-size:11px;flex-shrink:0" onclick="gbSil('${g.id}')">Sil</button>
+      </div>
+    </div>`).join('');
 }
 
 window.gbSil=async(gbId)=>{
@@ -1107,6 +1078,33 @@ window.confirmGbSil=async(gbId)=>{
   } catch(e){showToast('Hata: '+e.message);}
 };
 
+function renderKasaIslemleriTab(el){
+  const gsZamanlar=state.gunluk.filter(g=>g.tur==='GS'&&g.zaman).map(g=>g.zaman.seconds);
+  const visible=state.allIslemler.filter(i=>i.tur!=='yk_gider_gelir').slice(0,50);
+  if(!visible.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz işlem yok</div>';return;}
+  el.innerHTML=visible.map(i=>{
+    const tur=i.tur.startsWith('transfer')?'transfer':i.tur;
+    const islemSn=i.zaman?.seconds||0;
+    const gsUstune=i.gs_transfer||gsZamanlar.some(gs=>gs>=islemSn);
+    return `<div class="card" style="margin-bottom:8px">
+      <div class="card-body" style="display:flex;align-items:center;gap:12px">
+        <div class="islem-icon ${tur}">${tur==='gelir'?'💚':tur==='gider'?'🔴':'🔵'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px">${i.kategori||'Transfer'}${i.gs_transfer?' <span style="font-size:10px;color:var(--text3)">(GS)</span>':''}</div>
+          <div style="font-size:12px;color:var(--text2)">${i.gb_tarihi||''} • ${i.kasa||((i.kasadan||'')+'→'+(i.kasaya||''))} • ${i.kullanici||''}</div>
+          ${i.aciklama?`<div style="font-size:12px;color:var(--text3)">${i.aciklama}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div class="islem-amount ${tur}" style="font-size:15px">${tur==='gider'?'-':''}${fmt(i.tutar)}</div>
+          ${!gsUstune
+            ?`<button class="btn btn-ghost btn-sm" style="margin-top:6px;font-size:11px;color:var(--red)" onclick="islemSil('${i.sharedId}')">Sil</button>`
+            :`<span style="font-size:10px;color:var(--text3);display:block;margin-top:4px">${i.gs_transfer?'GS transferi':'GS yapıldı'}</span>`
+          }
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 window.islemSil=async(sharedId)=>{
   const islem=state.allIslemler.find(i=>i.sharedId===sharedId);
@@ -1154,15 +1152,6 @@ window.confirmGsSil=async(gsId)=>{
   closeModal();
   try {
     const gsKayit=state.gunluk.find(g=>g.id===gsId);
-    if(!gsKayit){showToast('Kayıt bulunamadı.'); return;}
-    const gsSn=gsKayit.zaman?.seconds||0;
-    // Bu GS'tan sonra GB var mı?
-    const sonrakiGB=state.gunluk.find(g=>g.tur==='GB'&&(g.zaman?.seconds||0)>gsSn);
-    if(sonrakiGB){
-      showModal('Silinemez','Bu gün sonundan sonra yeni gün başı yapılmış, silinemez.',
-        '<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
-      return;
-    }
     // GS kaydını sil
     await deleteDoc(doc(db,'gunluk',gsId));
     // Bu GS'a ait transfer kayıtlarını sil:
@@ -1420,14 +1409,7 @@ window.doUrunEkle=async()=>{
   renderStok();
 };
 
-// ── RAPOR (Madde 4) ──
-let raporTur='nakit';
-
-window.setRaporTur=btn=>{
-  raporTur=btn.dataset.v;
-  document.querySelectorAll('#rapor-tur-seg .seg-btn').forEach(b=>b.classList.toggle('active',b===btn));
-};
-
+// ── FIX 3: RAPOR — gb_tarihi bazlı filtreleme, fallback ile ──
 window.loadRapor=async()=>{
   const start=document.getElementById('rapor-start').value;
   const end=document.getElementById('rapor-end').value;
@@ -1443,162 +1425,43 @@ window.loadRapor=async()=>{
   const islemler=isSnap.docs.map(d=>({id:d.id,...d.data()}));
   const gunler=gunSnap.docs.map(d=>({id:d.id,...d.data()})).filter(g=>g.tur==='GB');
   if(!gunler.length){el.innerHTML='<div class="alert alert-warning">Bu tarih aralığında gün başı kaydı yok.</div>';return;}
-
-  // Tüm GS kayıtları — POS önceki gün için
-  const gsKayitlar=gunSnap.docs.map(d=>({id:d.id,...d.data()})).filter(g=>g.tur==='GS')
-    .sort((a,b)=>(a.zaman?.seconds||0)-(b.zaman?.seconds||0));
-
   let html='';
-  let toplamNakitCiro=0,toplamNakitGider=0,toplamPosCiro=0,toplamBankaGider=0;
-
-  for(let gi=0;gi<gunler.length;gi++){
-    const gb=gunler[gi];
+  for(const gb of gunler){
+    // gb_tarihi varsa doğrudan, yoksa zaman bazlı tarih karşılaştırması
     const gbIs=islemler.filter(i=>{
       if(i.gb_tarihi) return i.gb_tarihi===gb.tarih;
+      // Fallback: işlemin zaman'ından ISO tarih üret, gb.tarih ile karşılaştır
       if(i.zaman){
         const d=i.zaman.toDate?i.zaman.toDate():new Date(i.zaman);
-        return d.toISOString().split('T')[0]===gb.tarih;
+        const iso=d.toISOString().split('T')[0];
+        return iso===gb.tarih;
       }
       return false;
     });
-
-    let nakitCiro=0,nakitGider=0,posCiro=0,bankaGider=0,kkGider=0;
+    let ciro=0,topGider=0,posCiro=0;
     for(const i of gbIs){
-      const isGsT=(i.gs_transfer===true||i.aciklama==='günsonu');
-      if((i.tur==='gelir'||i.tur==='yk_gider_gelir')&&i.kasa==='YK') nakitCiro+=i.tutar;
-      if(i.tur==='transfer'&&i.kasadan==='YK'&&!isGsT) nakitCiro+=i.tutar;
-      if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!isGsT) nakitCiro-=i.tutar;
-      if(i.tur==='gider'&&(i.kasa==='YK'||i.kasa==='C')) nakitGider+=i.tutar;
-      // POS: o günün GS özetinden al, yoksa canlı hesapla
+      const isGsTransfer=(i.gs_transfer===true||i.aciklama==='günsonu');
+      if((i.tur==='gelir'||i.tur==='yk_gider_gelir')&&i.kasa==='YK') ciro+=i.tutar;
+      if(i.tur==='transfer'&&i.kasadan==='YK'&&!isGsTransfer) ciro+=i.tutar;
+      if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!isGsTransfer) ciro-=i.tutar;
+      if(i.tur==='gider'&&(i.kasa==='YK'||i.kasa==='C')) topGider+=i.tutar;
       if(i.tur==='gelir'&&i.kasa==='P') posCiro+=i.tutar;
-      if(i.tur==='gider'&&i.kasa==='B') bankaGider+=i.tutar;
-      if(i.tur==='gider'&&i.kasa==='KK') kkGider+=i.tutar;
     }
-    // POS cirosu: bir önceki günün GS kaydından al (varsa)
-    let posCiroGS=0;
-    if(gi>0){
-      const oncekiGB=gunler[gi-1];
-      const oncekiGS=gsKayitlar.find(g=>g.tarih===oncekiGB.tarih);
-      posCiroGS=oncekiGS?.ozet?.posCiro||0;
-    }
-
-    toplamNakitCiro+=nakitCiro;
-    toplamNakitGider+=nakitGider;
-    toplamPosCiro+=(posCiroGS||posCiro);
-    toplamBankaGider+=(bankaGider+kkGider);
-
-    if(raporTur==='nakit'||raporTur==='tumu'){
-      html+=`<div class="card" style="margin-bottom:8px">
-        <div class="card-header">${gb.tarih} ${raporTur==='tumu'?'<span style="font-size:10px;background:var(--green-bg);color:var(--green);padding:2px 6px;border-radius:4px">Nakit</span>':''}
-        </div>
-        <div class="card-body">
-          ${ozetRow('Nakit Ciro',nakitCiro,nakitCiro>=0)}
-          ${ozetRow('Nakit Giderler',nakitGider,false,true)}
-          ${ozetRow('Sonuç',nakitCiro-nakitGider,(nakitCiro-nakitGider)>=0)}
-        </div>
-      </div>`;
-    }
-    if(raporTur==='banka'||raporTur==='tumu'){
-      const posCiroGun=gi>0?posCiroGS:posCiro;
-      html+=`<div class="card" style="margin-bottom:8px${raporTur==='tumu'?';border-left:3px solid var(--purple)':''}">
-        <div class="card-header">${gb.tarih} ${raporTur==='tumu'?'<span style="font-size:10px;background:var(--purple-bg);color:var(--purple);padding:2px 6px;border-radius:4px">Banka</span>':''}
-        </div>
-        <div class="card-body">
-          ${ozetRow('POS Ciro'+(gi>0?' (önceki gün)':''),posCiroGun,posCiroGun>=0)}
-          ${ozetRow('Banka Giderleri',bankaGider,false,true)}
-          ${ozetRow('KK Giderleri',kkGider,false,true)}
-          ${ozetRow('Sonuç',posCiroGun-bankaGider-kkGider,(posCiroGun-bankaGider-kkGider)>=0)}
-        </div>
-      </div>`;
-    }
-  }
-
-  // Alt toplam
-  if(raporTur==='tumu'&&gunler.length>1){
-    html+=`<div class="card" style="margin-bottom:8px;background:var(--surface2)">
-      <div class="card-header">TOPLAM</div>
+    html+=`<div class="card" style="margin-bottom:8px">
+      <div class="card-header">${gb.tarih}</div>
       <div class="card-body">
-        ${ozetRow('Toplam Nakit Ciro',toplamNakitCiro)}
-        ${ozetRow('Toplam Nakit Gider',toplamNakitGider,false,true)}
-        ${ozetRow('Toplam POS Ciro',toplamPosCiro)}
-        ${ozetRow('Toplam Banka Gider',toplamBankaGider,false,true)}
-        ${ozetRow('Genel Sonuç',(toplamNakitCiro-toplamNakitGider+toplamPosCiro-toplamBankaGider),(toplamNakitCiro-toplamNakitGider+toplamPosCiro-toplamBankaGider)>=0)}
-      </div>
-    </div>`;
-  } else if(raporTur!=='tumu'&&gunler.length>1){
-    const topSonuc=raporTur==='nakit'?(toplamNakitCiro-toplamNakitGider):(toplamPosCiro-toplamBankaGider);
-    html+=`<div class="card" style="margin-bottom:8px;background:var(--surface2)">
-      <div class="card-header">TOPLAM</div>
-      <div class="card-body">
-        ${raporTur==='nakit'?ozetRow('Toplam Nakit Ciro',toplamNakitCiro):ozetRow('Toplam POS Ciro',toplamPosCiro)}
-        ${raporTur==='nakit'?ozetRow('Toplam Nakit Gider',toplamNakitGider,false,true):ozetRow('Toplam Banka Gider',toplamBankaGider,false,true)}
-        ${ozetRow('Toplam Sonuç',topSonuc,topSonuc>=0)}
+        ${ozetRow('Ciro',ciro,ciro>=0)}${ozetRow('Toplam Gider',topGider,false,true)}
+        ${ozetRow('POS Cirosu',posCiro)}${ozetRow('Sonuç',ciro-topGider,(ciro-topGider)>=0)}
       </div>
     </div>`;
   }
-
-  el.innerHTML=html||'<div class="alert alert-warning">Gösterilecek veri yok.</div>';
+  el.innerHTML=html;
 };
 
-// ── CSV / İşlem Listesi (Madde 4) ──
+// ── CSV ──
 window.setCsvTur=btn=>{
   state.csvTur=btn.dataset.v;
   document.querySelectorAll('#csv-tur-seg .seg-btn').forEach(b=>b.classList.toggle('active',b===btn));
-  // Kategori listbox göster/gizle
-  const wrap=document.getElementById('csv-kat-wrap');
-  const katSel=document.getElementById('csv-kategori');
-  if(state.csvTur==='gelir'||state.csvTur==='gider'){
-    wrap.style.display='block';
-    const liste=state.csvTur==='gelir'?state.kategoriler.gelir:state.kategoriler.gider;
-    katSel.innerHTML='<option value="">Tümü</option>'+liste.map(k=>`<option value="${k}">${k}</option>`).join('');
-  } else {
-    wrap.style.display='none';
-  }
-};
-
-window.loadIslemListesi=async()=>{
-  const start=document.getElementById('islem-csv-start').value;
-  const end=document.getElementById('islem-csv-end').value;
-  if(!start||!end){showToast('Tarih aralığı seçiniz.');return;}
-  const sonucEl=document.getElementById('islem-listesi-sonuc');
-  const exportWrap=document.getElementById('islem-listesi-export-wrap');
-  sonucEl.innerHTML='<div class="loader"><div class="spinner"></div></div>';
-  exportWrap.style.display='none';
-  const startTs=Timestamp.fromDate(new Date(start+'T00:00:00'));
-  const endTs=Timestamp.fromDate(new Date(end+'T23:59:59'));
-  const snap=await getDocs(query(collection(db,'islemler'),where('zaman','>=',startTs),where('zaman','<=',endTs),orderBy('zaman','asc')));
-  let rows=snap.docs.map(d=>d.data()).filter(i=>i.tur!=='yk_gider_gelir');
-  if(state.csvTur!=='hepsi') rows=rows.filter(i=>i.tur===state.csvTur||(state.csvTur==='transfer'&&i.tur==='transfer_alici'));
-  const secilenKat=document.getElementById('csv-kategori')?.value||'';
-  if(secilenKat) rows=rows.filter(i=>i.kategori===secilenKat);
-  if(!rows.length){sonucEl.innerHTML='<div class="empty-state" style="padding:20px 0"><span class="emoji">📋</span>Kayıt bulunamadı</div>';return;}
-
-  sonucEl.innerHTML=`<div style="overflow-x:auto;margin-top:4px">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr style="background:var(--surface2)">
-        <th style="padding:6px 8px;text-align:left;font-weight:800;color:var(--text2);border-bottom:2px solid var(--border)">Tarih</th>
-        <th style="padding:6px 8px;text-align:left;font-weight:800;color:var(--text2);border-bottom:2px solid var(--border)">Tür</th>
-        <th style="padding:6px 8px;text-align:left;font-weight:800;color:var(--text2);border-bottom:2px solid var(--border)">Kategori</th>
-        <th style="padding:6px 8px;text-align:left;font-weight:800;color:var(--text2);border-bottom:2px solid var(--border)">Kasa</th>
-        <th style="padding:6px 8px;text-align:right;font-weight:800;color:var(--text2);border-bottom:2px solid var(--border)">Tutar</th>
-      </tr></thead>
-      <tbody>${rows.map((i,idx)=>{
-        let tarihStr='';
-        try{const d=i.zaman?.toDate?i.zaman.toDate():(i.zaman?.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));tarihStr=d.toLocaleDateString('tr-TR');}catch(e){}
-        const tur=i.tur.startsWith('transfer')?'Transfer':(i.tur==='gelir'?'Gelir':'Gider');
-        const kasa=i.kasa||(i.kasadan&&i.kasaya?(i.kasadan+'→'+i.kasaya):'');
-        const renkClass=i.tur==='gelir'?'color:var(--green)':i.tur==='gider'?'color:var(--red)':'color:var(--blue)';
-        return `<tr style="border-bottom:1px solid var(--border);${idx%2===1?'background:var(--surface2)':''}">
-          <td style="padding:6px 8px;color:var(--text2)">${tarihStr}</td>
-          <td style="padding:6px 8px;font-weight:700;${renkClass}">${tur}</td>
-          <td style="padding:6px 8px">${i.kategori||'—'}</td>
-          <td style="padding:6px 8px;color:var(--text2)">${kasa}</td>
-          <td style="padding:6px 8px;text-align:right;font-weight:700;font-family:'Roboto Mono',monospace;${renkClass}">${fmt(i.tutar)}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table>
-  </div>`;
-  exportWrap.style.display='block';
 };
 
 window.islemCsvExport=async()=>{
@@ -1610,13 +1473,15 @@ window.islemCsvExport=async()=>{
   const snap=await getDocs(query(collection(db,'islemler'),where('zaman','>=',startTs),where('zaman','<=',endTs),orderBy('zaman','asc')));
   let rows=snap.docs.map(d=>d.data()).filter(i=>i.tur!=='yk_gider_gelir');
   if(state.csvTur!=='hepsi') rows=rows.filter(i=>i.tur===state.csvTur||(state.csvTur==='transfer'&&i.tur==='transfer_alici'));
-  const secilenKat=document.getElementById('csv-kategori')?.value||'';
-  if(secilenKat) rows=rows.filter(i=>i.kategori===secilenKat);
   const header='tarih,gb_tarihi,islem_turu,kasa,kategori,aciklama,tutar,kullanici\n';
   const csv=header+rows.map(i=>{
+    // Timestamp'i güvenli çevir
     let tarihStr='';
     if(i.zaman){
-      try{const d=i.zaman.toDate?i.zaman.toDate():(i.zaman.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));tarihStr=d.toLocaleDateString('tr-TR');}catch(e){}
+      try{
+        const d=i.zaman.toDate?i.zaman.toDate():(i.zaman.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));
+        tarihStr=d.toLocaleDateString('tr-TR');
+      }catch(e){}
     }
     const kasa=i.kasa||(i.kasadan&&i.kasaya?(i.kasadan+'>'+i.kasaya):'');
     return [tarihStr,i.gb_tarihi||'',i.tur,kasa,i.kategori||'',`"${(i.aciklama||'').replace(/"/g,'""')}"`,i.tutar||0,i.kullanici||''].join(',');
@@ -1644,92 +1509,6 @@ function downloadCsv(csv,filename){
   URL.revokeObjectURL(url);
   showToast('CSV indirildi ✓');
 }
-
-// ── KULLANICI YÖNETİMİ (Madde 5) ──
-window.showKullaniciYonetim=async()=>{
-  // Kullanıcı listesini çek
-  const snap=await getDoc(doc(db,'config','kullanicilar')).catch(()=>null);
-  const liste=snap&&snap.exists()?(snap.data().liste||[]):[];
-  const aktifKullaniciObj=liste.find(x=>x.ad===state.kullanici);
-  const isAdmin=aktifKullaniciObj?.admin===true;
-
-  if(!isAdmin){
-    // Admin değil: sadece kendi bilgilerini göster (çıkış yap butonu)
-    showModal('Hesap',
-      `Giriş yapan: <b>${state.kullanici}</b>`,
-      `<button class="btn btn-ghost" onclick="closeModal()">Kapat</button><button class="btn btn-danger" onclick="cikisYap()">Çıkış Yap</button>`
-    );
-    return;
-  }
-
-  renderKullaniciYonetimModal(liste);
-};
-
-function renderKullaniciYonetimModal(liste){
-  const listeHTML=liste.map(k=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div style="flex:1">
-        <div style="font-weight:800;font-size:14px">${k.ad} ${k.admin?'<span style="font-size:10px;background:var(--blue-bg);color:var(--blue);padding:2px 6px;border-radius:4px;font-weight:700">Admin</span>':''}</div>
-        <div style="font-size:12px;color:var(--text3)">Şifre: ${k.sifre}</div>
-      </div>
-      ${k.ad!==state.kullanici?`<button onclick="kullaniciSil('${k.ad}')" style="background:var(--red-bg);color:var(--red);border:none;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:800;cursor:pointer">Sil</button>`:'<span style="font-size:11px;color:var(--text3)">(siz)</span>'}
-    </div>`).join('');
-
-  document.getElementById('modal-title').textContent='Kullanıcı Yönetimi';
-  document.getElementById('modal-body').innerHTML='';
-  document.getElementById('modal-extra').innerHTML=`
-    <div style="margin-bottom:16px">${listeHTML||'<div style="color:var(--text3);font-size:13px;padding:8px 0">Kullanıcı yok</div>'}</div>
-    <div style="font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Yeni Kullanıcı Ekle</div>
-    <div class="form-group"><input id="yeni-kul-ad" class="form-control" type="text" placeholder="Kullanıcı adı"></div>
-    <div class="form-group"><input id="yeni-kul-sifre" class="form-control" type="text" placeholder="Şifre"></div>
-    <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer">
-      <input type="checkbox" id="yeni-kul-admin" style="width:18px;height:18px;accent-color:var(--primary)">
-      <span style="font-size:13px;font-weight:700;color:var(--text2)">Admin yetkisi</span>
-    </label>
-    <button class="btn btn-primary btn-sm" style="width:100%;padding:12px" onclick="kullaniciEkle()">+ Kullanıcı Ekle</button>`;
-  document.getElementById('modal-actions').innerHTML=`
-    <button class="btn btn-ghost" onclick="closeModal()">Kapat</button>
-    <button class="btn btn-danger" onclick="cikisYap()">Çıkış Yap</button>`;
-  document.getElementById('modal').classList.add('show');
-}
-
-window.kullaniciEkle=async()=>{
-  const ad=document.getElementById('yeni-kul-ad')?.value.trim();
-  const sifre=document.getElementById('yeni-kul-sifre')?.value.trim();
-  const admin=document.getElementById('yeni-kul-admin')?.checked||false;
-  if(!ad||!sifre){showToast('Kullanıcı adı ve şifre zorunludur.');return;}
-  try{
-    const snap=await getDoc(doc(db,'config','kullanicilar'));
-    const liste=snap.exists()?(snap.data().liste||[]):[];
-    if(liste.find(x=>x.ad===ad)){showToast('Bu kullanıcı adı zaten var.');return;}
-    liste.push({ad,sifre,admin});
-    await setDoc(doc(db,'config','kullanicilar'),{liste});
-    showToast('Kullanıcı eklendi ✓');
-    renderKullaniciYonetimModal(liste);
-  }catch(e){showToast('Hata: '+e.message);}
-};
-
-window.kullaniciSil=async(ad)=>{
-  if(ad===state.kullanici){showToast('Kendinizi silemezsiniz.');return;}
-  try{
-    const snap=await getDoc(doc(db,'config','kullanicilar'));
-    const liste=(snap.exists()?(snap.data().liste||[]):[]).filter(x=>x.ad!==ad);
-    await setDoc(doc(db,'config','kullanicilar'),{liste});
-    showToast('Kullanıcı silindi ✓');
-    renderKullaniciYonetimModal(liste);
-  }catch(e){showToast('Hata: '+e.message);}
-};
-
-window.cikisYap=()=>{
-  closeModal();
-  clearSession();
-  clearRemembered();
-  state.kullanici=null;
-  document.getElementById('app').style.display='none';
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('login-user').value='';
-  document.getElementById('login-pass').value='';
-};
 
 // ── KURULUM ──
 window.doKurulum=async()=>{
