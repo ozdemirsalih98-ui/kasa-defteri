@@ -208,6 +208,84 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── ÖDEMELER ── */
+  .odeme-section { margin-bottom: 14px; }
+  .odeme-section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: var(--radius-sm);
+    cursor: pointer; user-select: none; font-weight: 800; font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .odeme-section-header .sbaslik { display: flex; align-items: center; gap: 8px; }
+  .odeme-section-header .sbadge {
+    font-size: 11px; font-weight: 900; padding: 2px 8px;
+    border-radius: 20px; min-width: 22px; text-align: center;
+  }
+  .odeme-section-header .schevron { font-size: 12px; transition: transform .2s; }
+  .odeme-section-header.collapsed .schevron { transform: rotate(-90deg); }
+
+  .odeme-section-header.s-gecik { background: var(--red-bg); color: var(--red); border: 1px solid #FECACA; }
+  .odeme-section-header.s-gecik .sbadge { background: var(--red); color: #fff; }
+  .odeme-section-header.s-hafta { background: var(--orange-bg); color: var(--orange); border: 1px solid #FED7AA; }
+  .odeme-section-header.s-hafta .sbadge { background: var(--orange); color: #fff; }
+  .odeme-section-header.s-yaklasan { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .odeme-section-header.s-yaklasan .sbadge { background: var(--text3); color: #fff; }
+
+  .odeme-card {
+    background: var(--surface); border-radius: var(--radius-sm);
+    border: 1px solid var(--border); padding: 12px 14px;
+    margin-bottom: 8px; box-shadow: var(--shadow-sm);
+    transition: opacity .2s;
+  }
+  .odeme-card.odendi { border-color: #A7F3D0; background: var(--green-bg); }
+  .odeme-card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+  .odeme-card-ad { font-size: 15px; font-weight: 800; color: var(--text); }
+  .odeme-card-vade {
+    font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0; margin-left: 8px;
+  }
+  .odeme-card-vade.gecik { background: var(--red-bg); color: var(--red); }
+  .odeme-card-vade.hafta { background: var(--orange-bg); color: var(--orange); }
+  .odeme-card-vade.normal { background: var(--surface2); color: var(--text2); }
+  .odeme-card-vade.odendi { background: var(--green-bg); color: var(--green); }
+
+  .odeme-card-mid { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .odeme-tutar {
+    font-family: 'Roboto Mono', monospace; font-size: 16px; font-weight: 900;
+  }
+  .odeme-tutar.tahmini { color: #CA8A04; } /* sarı */
+  .odeme-tutar.kesin   { color: var(--red); } /* kırmızı */
+  .odeme-tutar.odendi  { color: var(--green); }
+  .odeme-chip {
+    font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+    background: var(--surface2); color: var(--text2);
+  }
+  .odeme-card-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .odeme-action-btn {
+    flex: 1; min-width: 0; padding: 7px 10px; border: none; border-radius: 8px;
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 12px;
+    cursor: pointer; transition: opacity .15s, transform .1s;
+  }
+  .odeme-action-btn:active { transform: scale(.96); opacity: .8; }
+  .btn-odeme-yap   { background: var(--green-bg); color: var(--green); border: 1px solid #A7F3D0; }
+  .btn-odeme-ertele { background: var(--blue-bg); color: var(--blue); border: 1px solid #BFDBFE; }
+  .btn-odeme-sil   { background: var(--red-bg); color: var(--red); border: 1px solid #FECACA; }
+
+  .odeme-filtre-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px; margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+  .odeme-filtre-panel .form-label { margin-bottom: 4px; }
+
+  /* Nav badge */
+  #nav-odemeler .odeme-badge {
+    position: absolute; top: 4px; right: calc(50% - 18px);
+    background: var(--red); color: #fff;
+    font-size: 9px; font-weight: 900; padding: 1px 5px;
+    border-radius: 10px; min-width: 16px; text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -287,19 +365,61 @@
       <div class="card"><div class="card-body" id="son-islemler" style="padding:0 16px"><div class="loader"><div class="spinner"></div></div></div></div>
     </div>
 
-    <!-- ÖDEMELER (yakında) -->
+    <!-- ÖDEMELER -->
     <div class="page" id="page-odemeler">
-      <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Yaklaşan Ödemeler</h2>
-      <div class="empty-state" style="padding:60px 20px">
-        <span class="emoji">📅</span>
-        <div style="font-size:16px;font-weight:800;color:var(--text2);margin-bottom:8px">Yakında</div>
-        <div style="font-size:13px;color:var(--text3)">Yaklaşan ödeme takibi bu sayfada olacak.</div>
+      <!-- Başlık -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h2 style="font-size:20px;font-weight:900">Ödeme Planı</h2>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="toggleOdemeFiltre()" id="odeme-filtre-btn">
+            🔍 Filtre
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="showOdemeEkleModal()">+ Ekle</button>
+        </div>
       </div>
+
+      <!-- Filtre Paneli (gizli) -->
+      <div class="odeme-filtre-panel" id="odeme-filtre-panel" style="display:none">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label class="form-label">Başlangıç</label>
+            <input class="form-control" type="date" id="odeme-filtre-start">
+          </div>
+          <div>
+            <label class="form-label">Bitiş</label>
+            <input class="form-control" type="date" id="odeme-filtre-end">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="renderOdemeler()">Uygula</button>
+          <button class="btn btn-ghost btn-sm" onclick="odemeFiltreTemizle()">Temizle</button>
+        </div>
+      </div>
+
+      <!-- Toggle: Ödenenler -->
+      <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2)">
+          <input type="checkbox" id="odeme-goster-odendi" onchange="renderOdemeler()" style="accent-color:var(--primary)">
+          Ödenenler göster
+        </label>
+      </div>
+
+      <!-- Liste -->
+      <div id="odeme-liste-wrap">
+        <div class="loader"><div class="spinner"></div></div>
+      </div>
+
+      <div style="height:12px"></div>
     </div>
 
     <!-- İŞLEM GİRİŞİ (kasa kartından açılır, nav'da görünmez) -->
     <div class="page" id="page-islem">
-      <h2 id="islem-sayfa-baslik" style="font-size:20px;font-weight:900;margin-bottom:14px">İşlem Girişi</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <h2 id="islem-sayfa-baslik" style="font-size:20px;font-weight:900">İşlem Girişi</h2>
+        <button class="btn btn-ghost btn-sm" id="odeme-plani-btn" onclick="showOdemePlanSecModal()" style="display:none">
+          📋 Ödeme Planı
+        </button>
+      </div>
       <div id="islem-giris-block">
         <div class="form-group">
           <label class="form-label">İşlem Türü</label>
@@ -525,6 +645,7 @@ let state = {
   aktifGB: null,
   aktifGS: null,
   csvTur: 'hepsi',
+  odemeler: [],      // /odemeler koleksiyonu
 };
 
 // ── HELPERS ──
@@ -644,6 +765,7 @@ async function initApp(){
   populateIslemForm();
   initDateInputs();
   startRealtimeListeners();
+  loadOdemeler(); // ödemeler ilk yükleme
 }
 
 // Realtime dinleyiciler — başka cihazdan değişiklik olunca otomatik güncelle
@@ -1032,6 +1154,8 @@ window.confirmIslemKaydet=async()=>{
     }
     await batch.commit();
     showToast('İşlem kaydedildi ✓');
+    // Ödeme planı referansı varsa ödendi işaretle
+    if(tur === 'gider') await kontolOdemeRef(data.aciklama);
     document.getElementById('islem-aciklama').value='';
     document.getElementById('islem-tutar').value='';
     document.getElementById('tr-tutar').value='';
@@ -1310,6 +1434,9 @@ window.kasaIslemAc = (kasa) => {
   // Sayfa başlığını güncelle
   const baslik = document.getElementById('islem-sayfa-baslik');
   if(baslik) baslik.textContent = kasaLabel(kasa) + ' — İşlem Girişi';
+  // Ödeme Planı butonu: POS hariç tüm kasalarda göster
+  const opBtn = document.getElementById('odeme-plani-btn');
+  if(opBtn) opBtn.style.display = kasa === 'P' ? 'none' : 'flex';
   // İşlem sayfasına geç
   goPage('islem');
   // Varsayılan tür: sadece P → gelir, diğer tüm kasalar → gider
@@ -1928,6 +2055,527 @@ window.doKurulum=async()=>{
 };
 
 // ── NAV ──
+// ── ÖDEMELER ──────────────────────────────────────────────────────────
+
+// Firestore'dan tüm ödemeleri yükle
+async function loadOdemeler(){
+  const snap = await getDocs(query(collection(db,'odemeler'), orderBy('vadeTarihi','asc'))).catch(()=>null);
+  state.odemeler = snap ? snap.docs.map(d=>({id:d.id,...d.data()})) : [];
+  renderOdemeler();
+  updateOdemeBadge();
+}
+
+// Tarihe göre durum hesapla
+function odemeDurum(vade, odendi){
+  if(odendi) return 'odendi';
+  const bugun = today();
+  const fark = Math.floor((new Date(vade)-new Date(bugun))/(1000*60*60*24));
+  if(fark < 0) return 'gecik';
+  if(fark <= 7) return 'hafta';
+  return 'normal';
+}
+
+// Kaç gün kaldı / geçti metni
+function vadeMesaj(vade, odendi){
+  if(odendi) return '✓ Ödendi';
+  const bugun = today();
+  const fark = Math.floor((new Date(vade)-new Date(bugun))/(1000*60*60*24));
+  if(fark === 0) return 'Bugün!';
+  if(fark < 0) return Math.abs(fark)+' gün geçti';
+  if(fark === 1) return 'Yarın';
+  return fark+' gün kaldı';
+}
+
+// Tekrar tipine göre etiket
+function tekrarLabel(t){
+  if(t==='aylik') return '↻ Aylık';
+  if(t==='haftalik') return '↻ Haftalık';
+  return '1× Tek';
+}
+
+// Bir sonraki vadeyi hesapla (aylik/haftalik için)
+function sonrakiVade(vadeTarihi, tekrar){
+  const d = new Date(vadeTarihi);
+  if(tekrar==='aylik'){
+    const gun = d.getDate();
+    d.setMonth(d.getMonth()+1);
+    // Kısa aylarda ayın son günü
+    const maxGun = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(gun, maxGun));
+  } else if(tekrar==='haftalik'){
+    d.setDate(d.getDate()+7);
+  }
+  return d.toISOString().split('T')[0];
+}
+
+// Nav badge güncelle
+function updateOdemeBadge(){
+  const navBtn = document.getElementById('nav-odemeler');
+  if(!navBtn) return;
+  const bugun = today();
+  const acik = state.odemeler.filter(o=>{
+    if(o.odendi) return false;
+    return o.vadeTarihi <= bugun; // gecikmiş
+  });
+  let badge = navBtn.querySelector('.odeme-badge');
+  if(acik.length > 0){
+    if(!badge){ badge=document.createElement('span'); badge.className='odeme-badge'; navBtn.appendChild(badge); }
+    badge.textContent = acik.length > 9 ? '9+' : acik.length;
+  } else {
+    if(badge) badge.remove();
+  }
+}
+
+// Filtre toggle
+window.toggleOdemeFiltre = () => {
+  const p = document.getElementById('odeme-filtre-panel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
+};
+
+window.odemeFiltreTemizle = () => {
+  document.getElementById('odeme-filtre-start').value = '';
+  document.getElementById('odeme-filtre-end').value = '';
+  renderOdemeler();
+};
+
+// Ana render fonksiyonu
+window.renderOdemeler = () => {
+  const wrap = document.getElementById('odeme-liste-wrap');
+  if(!wrap) return;
+
+  const gosterOdendi = document.getElementById('odeme-goster-odendi')?.checked || false;
+  const fStart = document.getElementById('odeme-filtre-start')?.value || '';
+  const fEnd   = document.getElementById('odeme-filtre-end')?.value   || '';
+
+  let liste = [...state.odemeler];
+
+  // Tarih filtresi
+  if(fStart) liste = liste.filter(o => o.vadeTarihi >= fStart);
+  if(fEnd)   liste = liste.filter(o => o.vadeTarihi <= fEnd);
+
+  // Ödendi filtresi
+  if(!gosterOdendi) liste = liste.filter(o => !o.odendi);
+
+  // Gruplara ayır
+  const gecik    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='gecik');
+  const hafta    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='hafta');
+  const yaklasan = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='normal');
+  const odendi   = gosterOdendi ? liste.filter(o => o.odendi) : [];
+
+  if(!liste.length){
+    wrap.innerHTML = '<div class="empty-state"><span class="emoji">📅</span><div style="font-size:16px;font-weight:800;color:var(--text2);margin-bottom:6px">Ödeme yok</div><div style="font-size:13px;color:var(--text3)">+ Ekle butonuyla ödeme planı oluştur</div></div>';
+    return;
+  }
+
+  let html = '';
+  if(gecik.length)    html += odemeSection('gecik',    '🔴 Gecikmiş',  gecik,    true);
+  if(hafta.length)    html += odemeSection('hafta',    '🟡 Bu Hafta',   hafta,    true);
+  if(yaklasan.length) html += odemeSection('yaklasan', '⚪ Yaklaşan',   yaklasan, false);
+  if(odendi.length)   html += odemeSection('odendi-s', '🟢 Ödendi',     odendi,   false);
+
+  wrap.innerHTML = html;
+};
+
+function odemeSection(key, baslik, liste, acikBasla){
+  const collapsed = !acikBasla;
+  const tip = key==='gecik'?'s-gecik':key==='hafta'?'s-hafta':key==='odendi-s'?'s-odendi':'s-yaklasan';
+  return `<div class="odeme-section">
+    <div class="odeme-section-header ${tip}${collapsed?' collapsed':''}" onclick="toggleOdemeSection('${key}')">
+      <div class="sbaslik">
+        <span>${baslik}</span>
+        <span class="sbadge">${liste.length}</span>
+      </div>
+      <span class="schevron">▼</span>
+    </div>
+    <div id="odemsec-${key}" style="display:${collapsed?'none':'block'}">
+      ${liste.map(o=>odemeKartHTML(o)).join('')}
+    </div>
+  </div>`;
+}
+
+window.toggleOdemeSection = (key) => {
+  const body = document.getElementById('odemsec-'+key);
+  const hdr  = body?.previousElementSibling;
+  if(!body) return;
+  const kapali = body.style.display==='none';
+  body.style.display = kapali ? 'block' : 'none';
+  if(hdr) hdr.classList.toggle('collapsed', !kapali);
+};
+
+function odemeKartHTML(o){
+  const durum  = odemeDurum(o.vadeTarihi, o.odendi);
+  const mesaj  = vadeMesaj(o.vadeTarihi, o.odendi);
+  // Tutar: kesin varsa kesin, yoksa tahmini
+  const tutar  = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0);
+  const tutarTip = o.odendi ? 'odendi' : (o.tutarKesin != null ? 'kesin' : 'tahmini');
+  const vadeCls = durum==='gecik'?'gecik':durum==='hafta'?'hafta':durum==='odendi'?'odendi':'normal';
+
+  const fmtVade = vadeStr => {
+    if(!vadeStr) return '';
+    const [y,m,d] = vadeStr.split('-');
+    return d+'.'+m+'.'+y;
+  };
+
+  return `<div class="odeme-card${o.odendi?' odendi':''}">
+    <div class="odeme-card-top">
+      <div class="odeme-card-ad">${o.ad}</div>
+      <div class="odeme-card-vade ${vadeCls}">${mesaj}</div>
+    </div>
+    <div class="odeme-card-mid">
+      <div class="odeme-tutar ${tutarTip}">₺${(tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+      <span class="odeme-chip">${fmtVade(o.vadeTarihi)}</span>
+      <span class="odeme-chip">${tekrarLabel(o.tekrar)}</span>
+      ${o.kategori?`<span class="odeme-chip">${o.kategori}</span>`:''}
+    </div>
+    ${o.notlar?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">📝 ${o.notlar}</div>`:''}
+    <div class="odeme-card-actions">
+      ${!o.odendi?`<button class="odeme-action-btn btn-odeme-yap" onclick="odemeYap('${o.id}')">✓ Ödendi</button>`:''}
+      ${!o.odendi?`<button class="odeme-action-btn btn-odeme-ertele" onclick="odemeErtele('${o.id}')">↷ Ertele</button>`:''}
+      <button class="odeme-action-btn btn-odeme-sil" onclick="odemeSil('${o.id}')">🗑 Sil</button>
+    </div>
+  </div>`;
+}
+
+// ── Ödeme Ekle Modal ──
+window.showOdemeEkleModal = () => {
+  const katOpts = state.kategoriler.gider.map(k=>`<option value="${k}">${k}</option>`).join('');
+  document.getElementById('modal-title').textContent = 'Yeni Ödeme Ekle';
+  document.getElementById('modal-body').innerHTML = '';
+  document.getElementById('modal-extra').innerHTML = `
+    <div class="form-group">
+      <label class="form-label">Ödeme Adı <span style="color:var(--red)">*</span></label>
+      <input class="form-control" id="op-ad" type="text" placeholder="Kira, Elektrik…">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tekrar Tipi <span style="color:var(--red)">*</span></label>
+      <div class="seg-control">
+        <button class="seg-btn active" id="op-tek-btn" onclick="opTekrarSec('tek')">Tek</button>
+        <button class="seg-btn" id="op-aylik-btn" onclick="opTekrarSec('aylik')">Aylık</button>
+        <button class="seg-btn" id="op-haftalik-btn" onclick="opTekrarSec('haftalik')">Haftalık</button>
+      </div>
+    </div>
+    <div id="op-vade-wrap">
+      <!-- Tek seçildiğinde: tarih picker -->
+      <div class="form-group" id="op-tek-wrap">
+        <label class="form-label">Tarih <span style="color:var(--red)">*</span></label>
+        <input class="form-control" id="op-tarih" type="date" value="${today()}">
+      </div>
+      <!-- Aylık: ayın kaçı -->
+      <div class="form-group" id="op-aylik-wrap" style="display:none">
+        <label class="form-label">Ayın Kaçı? <span style="color:var(--red)">*</span></label>
+        <select class="form-control" id="op-ayin-kaci">
+          ${Array.from({length:31},(_,i)=>`<option value="${i+1}">${i+1}${i+1===29||i+1===30||i+1===31?' (kısa ayda son gün)':''}</option>`).join('')}
+        </select>
+      </div>
+      <!-- Haftalık: haftanın kaçıncı günü -->
+      <div class="form-group" id="op-haftalik-wrap" style="display:none">
+        <label class="form-label">Haftanın Günü <span style="color:var(--red)">*</span></label>
+        <select class="form-control" id="op-hafta-gunu">
+          <option value="1">Pazartesi</option>
+          <option value="2">Salı</option>
+          <option value="3">Çarşamba</option>
+          <option value="4">Perşembe</option>
+          <option value="5">Cuma</option>
+          <option value="6">Cumartesi</option>
+          <option value="0">Pazar</option>
+        </select>
+        <label class="form-label" style="margin-top:10px">Başlangıç Tarihi</label>
+        <input class="form-control" id="op-hafta-baslangic" type="date" value="${today()}">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label" style="color:#CA8A04">Tahmini Tutar</label>
+        <input class="form-control" id="op-tutar-tahmini" type="number" min="0" step="0.01" placeholder="0,00" style="border-color:#FDE68A">
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="color:var(--red)">Kesin Tutar</label>
+        <input class="form-control" id="op-tutar-kesin" type="number" min="0" step="0.01" placeholder="0,00" style="border-color:#FECACA">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kategori</label>
+      <div style="display:flex;gap:8px">
+        <select class="form-control" id="op-kategori" style="flex:1">
+          <option value="">Seçiniz…</option>
+          ${katOpts}
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="showKategoriYonetimModal()" style="flex-shrink:0">Yönet</button>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0">
+      <label class="form-label">Açıklama <span style="color:var(--red)">*</span></label>
+      <input class="form-control" id="op-aciklama" type="text" placeholder="Ödeme açıklaması (zorunlu)">
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">Notlar</label>
+      <input class="form-control" id="op-notlar" type="text" placeholder="İsteğe bağlı…">
+    </div>`;
+  document.getElementById('modal-actions').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>
+     <button class="btn btn-primary" onclick="odemeKaydet()">Kaydet</button>`;
+  document.getElementById('modal').classList.add('show');
+};
+
+window.opTekrarSec = (tip) => {
+  ['tek','aylik','haftalik'].forEach(t=>{
+    document.getElementById('op-'+t+'-btn').classList.toggle('active', t===tip);
+    const w = document.getElementById('op-'+t+'-wrap');
+    if(w) w.style.display = t===tip ? 'block' : 'none';
+  });
+};
+
+window.odemeKaydet = async () => {
+  const ad = document.getElementById('op-ad')?.value.trim();
+  const aciklama = document.getElementById('op-aciklama')?.value.trim();
+  if(!ad){ showToast('Ödeme adı zorunludur.'); return; }
+  if(!aciklama){ showToast('Açıklama zorunludur.'); return; }
+
+  const tekrar = document.querySelector('#op-tek-btn.active') ? 'tek'
+               : document.querySelector('#op-aylik-btn.active') ? 'aylik' : 'haftalik';
+
+  let vadeTarihi = '';
+  if(tekrar === 'tek'){
+    vadeTarihi = document.getElementById('op-tarih')?.value;
+    if(!vadeTarihi){ showToast('Tarih seçiniz.'); return; }
+  } else if(tekrar === 'aylik'){
+    const gun = parseInt(document.getElementById('op-ayin-kaci')?.value || '1');
+    const d = new Date();
+    d.setDate(1);
+    // Bu ay mı gelecek ay mı? Bugünden büyükse bu ay, değilse gelecek ay
+    const maxGun = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    const gercekGun = Math.min(gun, maxGun);
+    d.setDate(gercekGun);
+    if(d < new Date(today())) d.setMonth(d.getMonth()+1);
+    const maxGun2 = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(gun, maxGun2));
+    vadeTarihi = d.toISOString().split('T')[0];
+  } else {
+    // Haftalık: seçilen başlangıç tarihinden itibaren ilk eşleşen gün
+    const hedefGun = parseInt(document.getElementById('op-hafta-gunu')?.value || '1');
+    const bas = new Date(document.getElementById('op-hafta-baslangic')?.value || today());
+    while(bas.getDay() !== hedefGun) bas.setDate(bas.getDate()+1);
+    vadeTarihi = bas.toISOString().split('T')[0];
+  }
+
+  const tutarTahminiRaw = document.getElementById('op-tutar-tahmini')?.value;
+  const tutarKesinRaw   = document.getElementById('op-tutar-kesin')?.value;
+  const tutarTahmini = tutarTahminiRaw ? parseFloat(tutarTahminiRaw) : null;
+  const tutarKesin   = tutarKesinRaw   ? parseFloat(tutarKesinRaw)   : null;
+
+  if(tutarTahmini === null && tutarKesin === null){
+    showToast('En az bir tutar giriniz.'); return;
+  }
+
+  const kategori = document.getElementById('op-kategori')?.value || '';
+  const notlar   = document.getElementById('op-notlar')?.value.trim() || '';
+  const ayinKaci = tekrar==='aylik' ? parseInt(document.getElementById('op-ayin-kaci')?.value||'1') : null;
+  const haftaGunu = tekrar==='haftalik' ? parseInt(document.getElementById('op-hafta-gunu')?.value||'1') : null;
+
+  const veri = {
+    ad, aciklama, tekrar, vadeTarihi, kategori, notlar,
+    tutarTahmini, tutarKesin, odendi: false, odendiTarih: null,
+    olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
+    ...(ayinKaci !== null && {ayinKaci}),
+    ...(haftaGunu !== null && {haftaGunu}),
+  };
+
+  try {
+    await addDoc(collection(db,'odemeler'), veri);
+    showToast('Ödeme eklendi ✓');
+    closeModal();
+    await loadOdemeler();
+  } catch(e){ showToast('Hata: '+e.message); }
+};
+
+// ── Ödendi işaretle ──
+window.odemeYap = async (id) => {
+  const o = state.odemeler.find(x=>x.id===id);
+  if(!o) return;
+  try {
+    await setDoc(doc(db,'odemeler',id), {
+      odendi: true,
+      odendiTarih: serverTimestamp(),
+      odendiKullanici: state.kullanici,
+    }, {merge:true});
+
+    // Tekrarlayan ise bir sonraki vadeyi oluştur
+    if(o.tekrar !== 'tek'){
+      const sonraki = sonrakiVadeHesapla(o);
+      await addDoc(collection(db,'odemeler'), {
+        ad: o.ad, aciklama: o.aciklama, tekrar: o.tekrar,
+        vadeTarihi: sonraki, kategori: o.kategori||'', notlar: o.notlar||'',
+        tutarTahmini: o.tutarTahmini, tutarKesin: o.tutarKesin,
+        ayinKaci: o.ayinKaci||null, haftaGunu: o.haftaGunu||null,
+        odendi: false, odendiTarih: null,
+        olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
+      });
+    }
+    showToast('Ödeme tamamlandı ✓');
+    await loadOdemeler();
+  } catch(e){ showToast('Hata: '+e.message); }
+};
+
+function sonrakiVadeHesapla(o){
+  if(o.tekrar === 'aylik'){
+    const gun = o.ayinKaci || parseInt(o.vadeTarihi.split('-')[2]);
+    const d = new Date(o.vadeTarihi);
+    d.setMonth(d.getMonth()+1);
+    const max = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(gun, max));
+    return d.toISOString().split('T')[0];
+  } else {
+    const d = new Date(o.vadeTarihi);
+    d.setDate(d.getDate()+7);
+    return d.toISOString().split('T')[0];
+  }
+}
+
+// ── Ertele ──
+window.odemeErtele = (id) => {
+  const o = state.odemeler.find(x=>x.id===id);
+  if(!o) return;
+  document.getElementById('modal-title').textContent = 'Ödemeyi Ertele';
+  document.getElementById('modal-body').innerHTML = `<b>${o.ad}</b> ödemesini hangi tarihe erteleyelim?`;
+  document.getElementById('modal-extra').innerHTML = `
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">Yeni Tarih</label>
+      <input class="form-control" id="ertele-tarih" type="date" value="${o.vadeTarihi}">
+    </div>`;
+  document.getElementById('modal-actions').innerHTML =
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>
+     <button class="btn btn-primary" onclick="odemeErteleKaydet('${id}')">Ertele</button>`;
+  document.getElementById('modal').classList.add('show');
+};
+
+window.odemeErteleKaydet = async (id) => {
+  const tarih = document.getElementById('ertele-tarih')?.value;
+  if(!tarih){ showToast('Tarih seçiniz.'); return; }
+  try {
+    await setDoc(doc(db,'odemeler',id), {vadeTarihi: tarih}, {merge:true});
+    showToast('Ödeme ertelendi ✓');
+    closeModal();
+    await loadOdemeler();
+  } catch(e){ showToast('Hata: '+e.message); }
+};
+
+// ── Sil ──
+window.odemeSil = (id) => {
+  const o = state.odemeler.find(x=>x.id===id);
+  if(!o) return;
+  showModal(
+    'Ödeme Sil',
+    `<b>${o.ad}</b> silinecek.${o.tekrar!=='tek'?' (Sadece bu kayıt silinir, rutin devam eder.)':''}`,
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>
+     <button class="btn btn-danger" onclick="odemeSilConfirm('${id}')">Sil</button>`
+  );
+};
+
+window.odemeSilConfirm = async (id) => {
+  closeModal();
+  try {
+    await deleteDoc(doc(db,'odemeler',id));
+    showToast('Ödeme silindi');
+    await loadOdemeler();
+  } catch(e){ showToast('Hata: '+e.message); }
+};
+
+// ── İşlem girişinde "Ödeme Planı" seç modal ──
+window.showOdemePlanSecModal = () => {
+  const bugun = today();
+  const iki_gun_once = new Date(); iki_gun_once.setDate(iki_gun_once.getDate()-2);
+  const bir_hafta_sonra = new Date(); bir_hafta_sonra.setDate(bir_hafta_sonra.getDate()+7);
+  const iki_gun_str = iki_gun_once.toISOString().split('T')[0];
+  const bir_hafta_str = bir_hafta_sonra.toISOString().split('T')[0];
+
+  const liste = state.odemeler.filter(o =>
+    !o.odendi &&
+    o.vadeTarihi >= iki_gun_str &&
+    o.vadeTarihi <= bir_hafta_str
+  );
+
+  if(!liste.length){
+    showModal('Ödeme Planı','Son 2 günde ve önümüzdeki 7 günde bekleyen ödeme yok.','<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
+    return;
+  }
+
+  const listHTML = liste.map(o => {
+    const tutar = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini||0);
+    const renk = odemeDurum(o.vadeTarihi, false)==='gecik' ? 'var(--red)' : 'var(--orange)';
+    return `<div onclick="odemePlanSec('${o.id}')" style="padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;background:var(--surface);display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-weight:800;font-size:14px">${o.ad}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:2px">${o.kategori||'—'} • ${o.aciklama}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;margin-left:10px">
+        <div style="font-weight:900;font-size:13px;color:${renk};font-family:'Roboto Mono',monospace">₺${(tutar).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+        <div style="font-size:10px;color:var(--text3)">${o.vadeTarihi}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-title').textContent = 'Ödeme Planı Seç';
+  document.getElementById('modal-body').innerHTML = 'Girişi bağlamak istediğiniz ödemeyi seçin:';
+  document.getElementById('modal-extra').innerHTML = `<div style="margin-top:10px">${listHTML}</div>`;
+  document.getElementById('modal-actions').innerHTML = `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>`;
+  document.getElementById('modal').classList.add('show');
+};
+
+window.odemePlanSec = (id) => {
+  closeModal();
+  const o = state.odemeler.find(x=>x.id===id);
+  if(!o) return;
+
+  // Kategoriyi setle
+  const katSel = document.getElementById('islem-kategori');
+  if(katSel){
+    // Kategori listesinde varsa seç
+    const opt = Array.from(katSel.options).find(op=>op.value===o.kategori);
+    if(opt) katSel.value = o.kategori;
+  }
+  // Açıklama: "aciklama [OP:id]" formatında — ID referansı
+  const aciklamaEl = document.getElementById('islem-aciklama');
+  if(aciklamaEl) aciklamaEl.value = o.aciklama + ' [OP:' + id + ']';
+  // Tutar
+  const tutar = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini||0);
+  const tutarEl = document.getElementById('islem-tutar');
+  if(tutarEl && tutar) tutarEl.value = tutar;
+
+  // İşlem türü: gider
+  setTur('gider');
+  showToast('Ödeme planı bilgileri yüklendi ✓');
+};
+
+// İşlem kaydedildikten sonra OP:id varsa ödendi işaretle
+async function kontolOdemeRef(aciklama){
+  const match = aciklama?.match(/\[OP:([^\]]+)\]/);
+  if(!match) return;
+  const opId = match[1];
+  const o = state.odemeler.find(x=>x.id===opId);
+  if(!o || o.odendi) return;
+  try {
+    await setDoc(doc(db,'odemeler',opId), {
+      odendi: true,
+      odendiTarih: serverTimestamp(),
+      odendiKullanici: state.kullanici,
+    }, {merge:true});
+    if(o.tekrar !== 'tek'){
+      const sonraki = sonrakiVadeHesapla(o);
+      await addDoc(collection(db,'odemeler'), {
+        ad: o.ad, aciklama: o.aciklama, tekrar: o.tekrar,
+        vadeTarihi: sonraki, kategori: o.kategori||'', notlar: o.notlar||'',
+        tutarTahmini: o.tutarTahmini, tutarKesin: o.tutarKesin,
+        ayinKaci: o.ayinKaci||null, haftaGunu: o.haftaGunu||null,
+        odendi: false, odendiTarih: null,
+        olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
+      });
+    }
+    showToast('Ödeme planı ödendi ✓');
+    await loadOdemeler();
+  } catch(e){ console.warn('OP ref hata',e); }
+}
+
+// ── NAV ──
 window.goPage=page=>{
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1942,6 +2590,7 @@ window.goPage=page=>{
     }
   }
   if(page==='stok') renderStok();
+  if(page==='odemeler') loadOdemeler();
 };
 
 function initDateInputs(){
