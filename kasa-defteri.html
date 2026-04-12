@@ -1258,7 +1258,7 @@ function renderKasaHareketleri(kasa) {
 
   const gbTarih = state.aktifGB ? state.aktifGB.tarih : null;
   baslikEl.textContent = gbTarih
-    ? kasa + ' — ' + gbTarih + ' GB'den İtibaren'
+    ? kasa + ' — ' + gbTarih + " GB'den İtibaren"
     : kasa + ' — Hareketler';
 
   // allIslemler yoksa islemler'i kullan (en azından mevcut günü göster)
@@ -1283,7 +1283,7 @@ function renderKasaHareketleri(kasa) {
   });
 
   if (!kasaIs.length) {
-    listeEl.innerHTML = '<div class="empty-state"><span class="emoji">📭</span>Bu GB'den sonra hareket yok</div>';
+    listeEl.innerHTML = '<div class="empty-state"><span class="emoji">📭</span>Bu GB\'den sonra hareket yok</div>';
     return;
   }
 
@@ -1297,10 +1297,10 @@ function renderKasaHareketleri(kasa) {
     if (i.tur === 'transfer_alici' && i.kasaya  === kasa) topGelir += i.tutar;
   });
 
-  const ozet = \`<div style="display:flex;gap:10px;padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:2px">
-    <span style="flex:1;font-size:12px;font-weight:800;color:var(--green)">↑ Giren: \${fmt(topGelir)}</span>
-    <span style="flex:1;font-size:12px;font-weight:800;color:var(--red)">↓ Çıkan: \${fmt(topGider)}</span>
-  </div>\`;
+  const ozet = `<div style="display:flex;gap:10px;padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:2px">
+    <span style="flex:1;font-size:12px;font-weight:800;color:var(--green)">↑ Giren: ${fmt(topGelir)}</span>
+    <span style="flex:1;font-size:12px;font-weight:800;color:var(--red)">↓ Çıkan: ${fmt(topGider)}</span>
+  </div>`;
 
   listeEl.innerHTML = ozet + kasaIs.map(i => islemItemHTML(i)).join('');
 }
