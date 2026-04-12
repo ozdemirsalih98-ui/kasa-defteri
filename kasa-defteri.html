@@ -8,28 +8,28 @@
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&display=swap');
 
   :root {
-    --bg: #F4F6FA;
+    --bg: #FFF8F0;
     --surface: #FFFFFF;
-    --surface2: #F0F2F7;
-    --border: #E2E6EF;
-    --text: #1A1D2E;
-    --text2: #6B7280;
-    --text3: #9CA3AF;
-    --green: #10B981;
+    --surface2: #FFF1E0;
+    --border: #FFD9A8;
+    --text: #1C1409;
+    --text2: #7A5C2E;
+    --text3: #B8946A;
+    --green: #059669;
     --green-bg: #ECFDF5;
-    --red: #EF4444;
+    --red: #DC2626;
     --red-bg: #FEF2F2;
-    --blue: #3B82F6;
+    --blue: #2563EB;
     --blue-bg: #EFF6FF;
-    --orange: #F59E0B;
-    --orange-bg: #FFFBEB;
-    --purple: #8B5CF6;
+    --orange: #EA580C;
+    --orange-bg: #FFF7ED;
+    --purple: #7C3AED;
     --purple-bg: #F5F3FF;
-    --primary: #2563EB;
-    --primary-light: #EFF6FF;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
-    --shadow: 0 4px 16px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
+    --primary: #EA580C;
+    --primary-light: #FFF7ED;
+    --shadow-sm: 0 1px 3px rgba(180,80,0,.10), 0 1px 2px rgba(180,80,0,.06);
+    --shadow: 0 4px 16px rgba(180,80,0,.10), 0 1px 4px rgba(180,80,0,.06);
+    --shadow-lg: 0 8px 32px rgba(180,80,0,.14);
     --radius: 16px;
     --radius-sm: 10px;
     --nav-h: 64px;
@@ -42,16 +42,16 @@
   #app { display: flex; flex-direction: column; height: 100%; max-width: 480px; margin: 0 auto; position: relative; background: var(--bg); }
 
   #topbar {
-    height: var(--nav-h); background: var(--surface); border-bottom: 1px solid var(--border);
+    height: var(--nav-h); background: var(--primary); border-bottom: none;
     display: flex; align-items: center; padding: 0 16px; gap: 10px;
-    box-shadow: var(--shadow-sm); position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(234,88,12,.25); position: sticky; top: 0; z-index: 100; flex-shrink: 0;
   }
-  #topbar .logo { font-size: 20px; font-weight: 900; color: var(--primary); letter-spacing: -0.5px; flex: 1; }
-  #topbar .logo span { color: var(--text2); font-weight: 600; }
-  #user-info { font-size: 13px; font-weight: 700; color: var(--text2); background: var(--surface2); padding: 4px 10px; border-radius: 20px; }
+  #topbar .logo { font-size: 20px; font-weight: 900; color: #fff; letter-spacing: -0.5px; flex: 1; }
+  #topbar .logo span { color: rgba(255,255,255,.75); font-weight: 600; }
+  #user-info { font-size: 13px; font-weight: 700; color: var(--primary); background: #fff; padding: 4px 10px; border-radius: 20px; }
   #gb-badge { font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 20px; cursor: pointer; transition: opacity .15s; }
-  #gb-badge.gb-ok { background: var(--green-bg); color: var(--green); }
-  #gb-badge.gb-warn { background: var(--red-bg); color: var(--red); animation: pulse 2s infinite; }
+  #gb-badge.gb-ok { background: rgba(255,255,255,.25); color: #fff; border: 1px solid rgba(255,255,255,.4); }
+  #gb-badge.gb-warn { background: #FEF2F2; color: var(--red); animation: pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
   #content { flex: 1; overflow-y: auto; padding: 16px 16px 80px; }
@@ -81,16 +81,28 @@
   #kasa-grid .kasa-card-wide { grid-column: 1 / -1; }
   .kasa-card { background: var(--surface); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); border: 1px solid var(--border); padding: 14px; cursor: pointer; transition: box-shadow .15s, transform .1s; position: relative; overflow: hidden; }
   .kasa-card:active { transform: scale(.97); }
-  .kasa-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-  .kasa-card.yk::before { background: var(--blue); }
-  .kasa-card.c::before { background: var(--green); }
-  .kasa-card.p::before { background: var(--orange); }
-  .kasa-card.b::before { background: var(--purple); }
-  .kasa-card.kk::before { background: var(--red); }
+  .kasa-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+  /* YK — turuncu (wide) */
+  .kasa-card.yk { background: linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%); border-color: #FED7AA; }
+  .kasa-card.yk::before { background: linear-gradient(90deg, #EA580C, #F97316); }
+  /* C — yeşil */
+  .kasa-card.c { background: linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%); border-color: #BBF7D0; }
+  .kasa-card.c::before { background: linear-gradient(90deg, #059669, #10B981); }
+  /* P — mavi */
+  .kasa-card.p { background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border-color: #BFDBFE; }
+  .kasa-card.p::before { background: linear-gradient(90deg, #2563EB, #3B82F6); }
+  /* B — mor */
+  .kasa-card.b { background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%); border-color: #DDD6FE; }
+  .kasa-card.b::before { background: linear-gradient(90deg, #7C3AED, #8B5CF6); }
+  /* KK — kırmızı */
+  .kasa-card.kk { background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%); border-color: #FECDD3; }
+  .kasa-card.kk::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+
   .kasa-card .kasa-name { font-size: 11px; font-weight: 800; color: var(--text2); text-transform: uppercase; letter-spacing: .5px; }
   .kasa-card .kasa-label { font-size: 10px; color: var(--text3); margin-top: 1px; }
   .kasa-card .kasa-balance { font-size: 20px; font-weight: 900; margin-top: 8px; font-family: 'Roboto Mono', monospace; }
-  .kasa-card .kasa-balance.pos { color: var(--text); }
+  .kasa-card-wide .kasa-balance { font-size: 28px; }
+  .kasa-card .kasa-balance.pos { color: var(--green); }
   .kasa-card .kasa-balance.neg { color: var(--red); }
 
   .ozet-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -255,11 +267,11 @@
     <!-- ANASAYFA -->
     <div class="page active" id="page-ana">
       <div id="kasa-grid">
-        <div class="kasa-card yk" onclick="openDrawer('YK')"><div class="kasa-name">Yazar Kasa</div><div class="kasa-label">YK</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div></div>
-        <div class="kasa-card c" onclick="openDrawer('C')"><div class="kasa-name">Cep</div><div class="kasa-label">C</div><div class="kasa-balance pos" id="bal-c">₺0,00</div></div>
-        <div class="kasa-card p" onclick="openDrawer('P')"><div class="kasa-name">POS</div><div class="kasa-label">P</div><div class="kasa-balance pos" id="bal-p">₺0,00</div></div>
-        <div class="kasa-card b" onclick="openDrawer('B')"><div class="kasa-name">Banka</div><div class="kasa-label">B</div><div class="kasa-balance pos" id="bal-b">₺0,00</div></div>
-        <div class="kasa-card kk kasa-card-wide" onclick="openDrawer('KK')"><div class="kasa-name">Kredi Kartı</div><div class="kasa-label">KK</div><div class="kasa-balance pos" id="bal-kk">₺0,00</div></div>
+        <div class="kasa-card yk kasa-card-wide" onclick="kasaIslemAc('YK')"><div class="kasa-name">Yazar Kasa</div><div class="kasa-label">YK</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div></div>
+        <div class="kasa-card c" onclick="kasaIslemAc('C')"><div class="kasa-name">Cep</div><div class="kasa-label">C</div><div class="kasa-balance pos" id="bal-c">₺0,00</div></div>
+        <div class="kasa-card p" onclick="kasaIslemAc('P')"><div class="kasa-name">POS</div><div class="kasa-label">P</div><div class="kasa-balance pos" id="bal-p">₺0,00</div></div>
+        <div class="kasa-card b" onclick="kasaIslemAc('B')"><div class="kasa-name">Banka</div><div class="kasa-label">B</div><div class="kasa-balance pos" id="bal-b">₺0,00</div></div>
+        <div class="kasa-card kk" onclick="kasaIslemAc('KK')"><div class="kasa-name">Kredi Kartı</div><div class="kasa-label">KK</div><div class="kasa-balance pos" id="bal-kk">₺0,00</div></div>
       </div>
       <div class="section-title">Nakit Günlük Özet</div>
       <div class="card" style="margin-bottom:12px"><div class="card-body" id="nk-ozet"><div class="loader"><div class="spinner"></div></div></div></div>
@@ -416,7 +428,7 @@
       Ana Sayfa
     </button>
     <button class="nav-btn" id="nav-islem" onclick="goPage('islem')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
       İşlem
     </button>
     <button class="nav-btn" id="nav-islemler" onclick="goPage('islemler')">
@@ -1182,6 +1194,35 @@ window.confirmGsSil=async(gsId)=>{
     await loadGunluk(); await loadAllIslemler(); await loadIslemler();
     renderApp(); renderIslemlerPage();
   } catch(e){showToast('Hata: '+e.message);}
+};
+
+// ── KASA KARTI TIKLAMA → İşlem Girişi ──
+// YK = POS kasası → Gelir varsayılan; diğerleri → Gider varsayılan
+const POS_KASALAR = ['YK', 'P']; // gelir varsayılanı olan kasalar
+
+window.kasaIslemAc = (kasa) => {
+  // İşlem sayfasına geç
+  goPage('islem');
+
+  // Varsayılan tür: YK ve P → gelir, diğerleri → gider
+  const varsayilanTur = POS_KASALAR.includes(kasa) ? 'gelir' : 'gider';
+  setTur(varsayilanTur);
+
+  if (varsayilanTur === 'transfer') {
+    // Transfer için gönderen kasayı seç
+    const trG = document.getElementById('tr-gonderen');
+    if (trG) trG.value = kasa;
+  } else {
+    // Normal işlem: kasa listbox'ını doğru kasaya ayarla
+    const kasaSel = document.getElementById('islem-kasa');
+    if (kasaSel) {
+      // filterKasaForTur zaten çağrıldı (setTur içinde), seçeneği seç
+      // Seçenek yoksa (kasa bu tür için filtreli) en yakın uygun olanı bırak
+      const opts = Array.from(kasaSel.options).map(o => o.value);
+      if (opts.includes(kasa)) kasaSel.value = kasa;
+    }
+  }
+  updateKategoriSelect();
 };
 
 // ── KASA DRAWER ──
