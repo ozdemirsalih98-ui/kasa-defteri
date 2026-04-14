@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v21.1</title>
+<title>Kasa Defteri v21.2</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&display=swap');
 
@@ -1314,6 +1314,36 @@ window.confirmSil=async(sharedId)=>{
     const batch=writeBatch(db);
     snap.docs.forEach(d=>batch.delete(d.ref));
     await batch.commit();
+
+// Ödeme planını geri al
+    if(match){
+      const opId = match[1];
+      await setDoc(doc(db,'odemeler',opId), {
+        odendi: false,
+        odendiTarih: null,
+        odendiKullanici: null,
+      }, {merge:true});
+      // Sonraki vadeyi sil (aynı ad + odendi:false + zaman > şimdi)
+      const o = state.odemeler.find(x=>x.id===opId);
+      if(o && o.tekrar !== 'tek'){
+        const sonrakiQ = query(
+          collection(db,'odemeler'),
+          where('ad','==',o.ad),
+          where('odendi','==',false),
+          where('tekrar','==',o.tekrar)
+        );
+        const sonrakiSnap = await getDocs(sonrakiQ);
+        const silBatch = writeBatch(db);
+        sonrakiSnap.docs
+          .filter(d => d.id !== opId)
+          .forEach(d => silBatch.delete(d.ref));
+        await silBatch.commit();
+      }
+      await loadOdemeler();
+      showToast('Ödeme planı geri alındı ✓');
+    }
+
+
     showToast('İşlem silindi');
     await loadAllIslemler(); await loadIslemler();
     renderBalances(); renderOzet(); renderSonIslemler(); renderIslemlerPage();
