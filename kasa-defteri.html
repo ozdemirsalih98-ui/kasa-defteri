@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v21.2</title>
+<title>Kasa Defteri v21.3</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&display=swap');
 
@@ -1311,11 +1311,17 @@ window.confirmSil=async(sharedId)=>{
   try {
     const q=query(collection(db,'islemler'),where('sharedId','==',sharedId));
     const snap=await getDocs(q);
+    
+    // OP:id referansı var mı kontrol et
+    const islemDoc = snap.docs[0]?.data();
+    const aciklama = islemDoc?.aciklama || '';
+    const match = aciklama.match(/\[OP:([^\]]+)\]/);
+    
     const batch=writeBatch(db);
     snap.docs.forEach(d=>batch.delete(d.ref));
     await batch.commit();
 
-// Ödeme planını geri al
+    // Ödeme planını geri al
     if(match){
       const opId = match[1];
       await setDoc(doc(db,'odemeler',opId), {
@@ -1343,12 +1349,18 @@ window.confirmSil=async(sharedId)=>{
       showToast('Ödeme planı geri alındı ✓');
     }
 
-
     showToast('İşlem silindi');
     await loadAllIslemler(); await loadIslemler();
     renderBalances(); renderOzet(); renderSonIslemler(); renderIslemlerPage();
   } catch(e){showToast('Hata: '+e.message);}
 };
+
+
+
+
+
+
+
 
 // GS kaydını sil (hatalı günsonları için)
 window.gsSil=async(gsId)=>{
