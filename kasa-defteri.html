@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v21.3</title>
+<title>Kasa Defteri v23</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Roboto+Mono:wght@400;600&display=swap');
 
@@ -599,6 +599,14 @@
     <button id="drawer-close" onclick="closeDrawer()">✕</button>
   </div>
   <div id="drawer-body"></div>
+</div>
+
+<!-- ÖDEME YAP MODAL -->
+<div class="modal-overlay" id="odeme-yap-modal">
+  <div class="modal-box">
+    <div class="modal-title">Ödeme Yap</div>
+    <div id="odeme-yap-body"></div>
+  </div>
 </div>
 
 <!-- MODAL -->
@@ -1324,11 +1332,23 @@ window.confirmSil=async(sharedId)=>{
     // Ödeme planını geri al
     if(match){
       const opId = match[1];
-      await setDoc(doc(db,'odemeler',opId), {
+      const opSnap = await getDoc(doc(db,'odemeler',opId)).catch(()=>null);
+      const opData = opSnap?.exists() ? opSnap.data() : null;
+
+      const geriYukle = {
         odendi: false,
         odendiTarih: null,
         odendiKullanici: null,
-      }, {merge:true});
+      };
+      // v23: oncekiTutar alanları varsa geri yükle
+      if(opData){
+        if('oncekiTutarTahmini' in opData) geriYukle.tutarTahmini = opData.oncekiTutarTahmini;
+        if('oncekiTutarKesin' in opData) geriYukle.tutarKesin = opData.oncekiTutarKesin;
+        geriYukle.oncekiTutarTahmini = null;
+        geriYukle.oncekiTutarKesin = null;
+      }
+
+      await setDoc(doc(db,'odemeler',opId), geriYukle, {merge:true});
       // Sonraki vadeyi sil (aynı ad + odendi:false + zaman > şimdi)
       const o = state.odemeler.find(x=>x.id===opId);
       if(o && o.tekrar !== 'tek'){
@@ -2136,6 +2156,7 @@ function tekrarLabel(t){
 }
 
 // Bir sonraki vadeyi hesapla (aylik/haftalik için)
+function sonrakiVadeHesapla(o){ return sonrakiVade(o.vadeTarihi, o.tekrar); }
 function sonrakiVade(vadeTarihi, tekrar){
   const d = new Date(vadeTarihi);
   if(tekrar==='aylik'){
@@ -2177,6 +2198,9 @@ window.toggleOdemeFiltre = () => {
 window.odemeFiltreTemizle = () => {
   document.getElementById('odeme-filtre-start').value = '';
   document.getElementById('odeme-filtre-end').value = '';
+  // v23: toggle'ı yeniden aktif et
+  const toggleEl = document.getElementById('odeme-goster-odendi');
+  if(toggleEl){ toggleEl.disabled = false; toggleEl.parentElement.style.opacity = '1'; }
   renderOdemeler();
 };
 
@@ -2185,9 +2209,18 @@ window.renderOdemeler = () => {
   const wrap = document.getElementById('odeme-liste-wrap');
   if(!wrap) return;
 
-  const gosterOdendi = document.getElementById('odeme-goster-odendi')?.checked || false;
   const fStart = document.getElementById('odeme-filtre-start')?.value || '';
   const fEnd   = document.getElementById('odeme-filtre-end')?.value   || '';
+  const filtreli = !!(fStart || fEnd);
+
+  // v23: filtreli modda toggle devre dışı
+  const toggleEl = document.getElementById('odeme-goster-odendi');
+  if(toggleEl){
+    toggleEl.disabled = filtreli;
+    toggleEl.parentElement.style.opacity = filtreli ? '.4' : '1';
+  }
+
+  const gosterOdendi = filtreli ? true : (toggleEl?.checked || false);
 
   let liste = [...state.odemeler];
 
@@ -2195,14 +2228,7 @@ window.renderOdemeler = () => {
   if(fStart) liste = liste.filter(o => o.vadeTarihi >= fStart);
   if(fEnd)   liste = liste.filter(o => o.vadeTarihi <= fEnd);
 
-  // Ödendi filtresi
   if(!gosterOdendi) liste = liste.filter(o => !o.odendi);
-
-  // Gruplara ayır
-  const gecik    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='gecik');
-  const hafta    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='hafta');
-  const yaklasan = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='normal');
-  const odendi   = gosterOdendi ? liste.filter(o => o.odendi) : [];
 
   if(!liste.length){
     wrap.innerHTML = '<div class="empty-state"><span class="emoji">📅</span><div style="font-size:16px;font-weight:800;color:var(--text2);margin-bottom:6px">Ödeme yok</div><div style="font-size:13px;color:var(--text3)">+ Ekle butonuyla ödeme planı oluştur</div></div>';
@@ -2210,10 +2236,25 @@ window.renderOdemeler = () => {
   }
 
   let html = '';
-  if(gecik.length)    html += odemeSection('gecik',    '🔴 Gecikmiş',  gecik,    true);
-  if(hafta.length)    html += odemeSection('hafta',    '🟡 Bu Hafta',   hafta,    true);
-  if(yaklasan.length) html += odemeSection('yaklasan', '⚪ Yaklaşan',   yaklasan, false);
-  if(odendi.length)   html += odemeSection('odendi-s', '🟢 Ödendi',     odendi,   false);
+
+  if(filtreli){
+    // v23 filtreli mod: sadece Ödenmemiş ve Ödendi — normal bölüm yapısı yok
+    const odenmemisler = liste.filter(o => !o.odendi).sort((a,b)=>a.vadeTarihi.localeCompare(b.vadeTarihi));
+    const odendiler    = liste.filter(o => o.odendi).sort((a,b)=>a.vadeTarihi.localeCompare(b.vadeTarihi));
+    if(odenmemisler.length) html += odemeSection('filtre-odenmemis', '⚪ Ödenmemiş', odenmemisler, true);
+    if(odendiler.length)    html += odemeSection('filtre-odendi',    '🟢 Ödendi',    odendiler,    true);
+  } else {
+    // filtresiz mod — mevcut bölüm yapısı
+    const gecik    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='gecik');
+    const hafta    = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='hafta');
+    const yaklasan = liste.filter(o => odemeDurum(o.vadeTarihi, o.odendi)==='normal');
+    const odendi   = gosterOdendi ? liste.filter(o => o.odendi) : [];
+
+    if(gecik.length)    html += odemeSection('gecik',    '🔴 Gecikmiş',  gecik,    true);
+    if(hafta.length)    html += odemeSection('hafta',    '🟡 Bu Hafta',   hafta,    true);
+    if(yaklasan.length) html += odemeSection('yaklasan', '⚪ Yaklaşan',   yaklasan, false);
+    if(odendi.length)   html += odemeSection('odendi-s', '🟢 Ödendi',     odendi,   false);
+  }
 
   wrap.innerHTML = html;
 };
@@ -2247,8 +2288,10 @@ window.toggleOdemeSection = (key) => {
 function odemeKartHTML(o){
   const durum  = odemeDurum(o.vadeTarihi, o.odendi);
   const mesaj  = vadeMesaj(o.vadeTarihi, o.odendi);
-  // Tutar: kesin varsa kesin, yoksa tahmini
-  const tutar  = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0);
+  // v23: tutar rengi — ödenmemiş: tahmini=sarı, kesin=kırmızı; ödendi: yeşil
+  const tutar  = o.odendi
+    ? (o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0))
+    : (o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0));
   const tutarTip = o.odendi ? 'odendi' : (o.tutarKesin != null ? 'kesin' : 'tahmini');
   const vadeCls = durum==='gecik'?'gecik':durum==='hafta'?'hafta':durum==='odendi'?'odendi':'normal';
 
@@ -2258,7 +2301,28 @@ function odemeKartHTML(o){
     return d+'.'+m+'.'+y;
   };
 
-  return `<div class="odeme-card${o.odendi?' odendi':''}">
+  // v23: ödendi kart — yeşil arka plan, sadece Sil butonu
+  if(o.odendi){
+    return `<div class="odeme-card odendi">
+      <div class="odeme-card-top">
+        <div class="odeme-card-ad">${o.ad}</div>
+        <div class="odeme-card-vade odendi">${mesaj}</div>
+      </div>
+      <div class="odeme-card-mid">
+        <div class="odeme-tutar odendi">₺${(tutar||0).toLocaleString('tr-TR',{minimumFractionDigits:2})}</div>
+        <span class="odeme-chip">${fmtVade(o.vadeTarihi)}</span>
+        <span class="odeme-chip">${tekrarLabel(o.tekrar)}</span>
+        ${o.kategori?`<span class="odeme-chip">${o.kategori}</span>`:''}
+      </div>
+      ${o.notlar?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">📝 ${o.notlar}</div>`:''}
+      <div class="odeme-card-actions">
+        <button class="odeme-action-btn btn-odeme-sil" onclick="odemeSil('${o.id}')">🗑 Sil</button>
+      </div>
+    </div>`;
+  }
+
+  // v23: ödenmemiş kart — yeşil yok, Ödeme Yap (nötr/gri), Ertele, Sil
+  return `<div class="odeme-card">
     <div class="odeme-card-top">
       <div class="odeme-card-ad">${o.ad}</div>
       <div class="odeme-card-vade ${vadeCls}">${mesaj}</div>
@@ -2271,8 +2335,8 @@ function odemeKartHTML(o){
     </div>
     ${o.notlar?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-weight:600">📝 ${o.notlar}</div>`:''}
     <div class="odeme-card-actions">
-      ${!o.odendi?`<button class="odeme-action-btn btn-odeme-yap" onclick="odemeYap('${o.id}')">✓ Ödendi</button>`:''}
-      ${!o.odendi?`<button class="odeme-action-btn btn-odeme-ertele" onclick="odemeErtele('${o.id}')">↷ Ertele</button>`:''}
+      <button class="odeme-action-btn btn-odeme-yap" onclick="odemeYapModal('${o.id}')">💳 Ödeme Yap</button>
+      <button class="odeme-action-btn btn-odeme-ertele" onclick="odemeErtele('${o.id}')">↷ Ertele</button>
       <button class="odeme-action-btn btn-odeme-sil" onclick="odemeSil('${o.id}')">🗑 Sil</button>
     </div>
   </div>`;
@@ -2430,48 +2494,112 @@ window.odemeKaydet = async () => {
   } catch(e){ showToast('Hata: '+e.message); }
 };
 
-// ── Ödendi işaretle ──
-window.odemeYap = async (id) => {
+// ── Ödeme Yap (v23 akışı) ──
+// 1) Kasa seçim modalı aç (POS hariç)
+// 2) Tutar değiştirilebilir; değişirse tutarKesin'e yaz, tutarTahmini sil
+// 3) oncekiTutar yedekleme
+// 4) İşlem giriş sayfasına yönlendir (kategori/açıklama/tutar otomatik dolu)
+// v23: odemeYapModal — odemeYap ile aynı, buton adı güncellendi
+window.odemeYapModal = window.odemeYap = (id) => {
   const o = state.odemeler.find(x=>x.id===id);
   if(!o) return;
+
+  const kasalar = state.kasalar.filter(k => k !== 'P'); // POS hariç
+  const varsayilanTutar = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0);
+
+  const kasaOptHTML = kasalar.map(k =>
+    `<div onclick="odemeYapKasaSec('${id}','${k}')" style="padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;background:var(--surface);display:flex;justify-content:space-between;align-items:center;transition:background .15s" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='var(--surface)'">
+      <div style="font-weight:800;font-size:15px">${k} — ${kasaLabel(k)}</div>
+    </div>`
+  ).join('');
+
+  document.getElementById('odeme-yap-body').innerHTML = `
+    <div style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--text2);margin-bottom:4px">Ödeme</div>
+      <div style="font-size:16px;font-weight:900">${o.ad}</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tutar (₺)</label>
+      <input class="form-control" id="odeme-yap-tutar" type="number" min="0.01" step="0.01" value="${varsayilanTutar}" placeholder="0,00">
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label class="form-label">Kasa Seç (POS hariç)</label>
+    </div>
+    <div>${kasaOptHTML}</div>
+    <div style="margin-top:10px">
+      <button class="btn btn-ghost" onclick="closeOdemeYapModal()">İptal</button>
+    </div>`;
+
+  document.getElementById('odeme-yap-modal').classList.add('show');
+};
+
+window.closeOdemeYapModal = () => {
+  document.getElementById('odeme-yap-modal').classList.remove('show');
+};
+
+window.odemeYapKasaSec = async (id, kasa) => {
+  const o = state.odemeler.find(x=>x.id===id);
+  if(!o) return;
+
+  const tutarInput = parseFloat(document.getElementById('odeme-yap-tutar')?.value);
+  if(!tutarInput || tutarInput <= 0){ showToast('Geçerli bir tutar giriniz.'); return; }
+
+  closeOdemeYapModal();
+
+  const varsayilanTutar = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0);
+  const tutarDegisti = Math.abs(tutarInput - varsayilanTutar) > 0.001;
+
   try {
-    await setDoc(doc(db,'odemeler',id), {
+    // oncekiTutar yedekleme + odendi işaretleme
+    const guncelleme = {
       odendi: true,
       odendiTarih: serverTimestamp(),
       odendiKullanici: state.kullanici,
-    }, {merge:true});
+      oncekiTutarTahmini: o.tutarTahmini ?? null,
+      oncekiTutarKesin: o.tutarKesin ?? null,
+    };
 
-    // Tekrarlayan ise bir sonraki vadeyi oluştur
+    if(tutarDegisti){
+      // Kullanıcı tutarı değiştirdi → tutarKesin'e yaz, tutarTahmini sil
+      guncelleme.tutarKesin = tutarInput;
+      guncelleme.tutarTahmini = null;
+    }
+
+    await setDoc(doc(db,'odemeler',id), guncelleme, {merge:true});
+
+    // Tekrarlayan ise bir sonraki vadeyi oluştur (orijinal plan bilgileriyle)
     if(o.tekrar !== 'tek'){
       const sonraki = sonrakiVadeHesapla(o);
       await addDoc(collection(db,'odemeler'), {
         ad: o.ad, aciklama: o.aciklama, tekrar: o.tekrar,
         vadeTarihi: sonraki, kategori: o.kategori||'', notlar: o.notlar||'',
-        tutarTahmini: o.tutarTahmini, tutarKesin: o.tutarKesin,
+        tutarTahmini: o.tutarTahmini,   // orijinal plan bilgisi
+        tutarKesin: o.tutarKesin ?? null,
         ayinKaci: o.ayinKaci||null, haftaGunu: o.haftaGunu||null,
         odendi: false, odendiTarih: null,
         olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
       });
     }
-    showToast('Ödeme tamamlandı ✓');
+
     await loadOdemeler();
+
+    // İşlem giriş sayfasına yönlendir (kategori + açıklama + tutar otomatik)
+    kasaIslemAc(kasa);
+    setTur('gider');
+
+    const katSel = document.getElementById('islem-kategori');
+    if(katSel && o.kategori){
+      const opt = Array.from(katSel.options).find(op => op.value === o.kategori);
+      if(opt) katSel.value = o.kategori;
+    }
+    const aciklamaEl = document.getElementById('islem-aciklama');
+    if(aciklamaEl) aciklamaEl.value = (o.aciklama||o.ad) + ' [OP:' + id + ']';
+    const tutarEl = document.getElementById('islem-tutar');
+    if(tutarEl) tutarEl.value = tutarInput;
+
+    showToast('Kasa seçildi, işlem bilgileri yüklendi ✓');
   } catch(e){ showToast('Hata: '+e.message); }
 };
-
-function sonrakiVadeHesapla(o){
-  if(o.tekrar === 'aylik'){
-    const gun = o.ayinKaci || parseInt(o.vadeTarihi.split('-')[2]);
-    const d = new Date(o.vadeTarihi);
-    d.setMonth(d.getMonth()+1);
-    const max = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
-    d.setDate(Math.min(gun, max));
-    return d.toISOString().split('T')[0];
-  } else {
-    const d = new Date(o.vadeTarihi);
-    d.setDate(d.getDate()+7);
-    return d.toISOString().split('T')[0];
-  }
-}
 
 // ── Ertele ──
 window.odemeErtele = (id) => {
@@ -2505,9 +2633,21 @@ window.odemeErteleKaydet = async (id) => {
 window.odemeSil = (id) => {
   const o = state.odemeler.find(x=>x.id===id);
   if(!o) return;
+
+  // v23: ödendi kartta sil → uyarı, başka işlem yapma
+  if(o.odendi){
+    showModal(
+      'Silinemez',
+      'Bu ödeme gerçekleşti. Silmek için önce işlemler sayfasından ilgili işlemi silin.',
+      `<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>`
+    );
+    return;
+  }
+
+  // v23: ödenmemiş — seriyi durdurur (tek kayıt silinir)
   showModal(
     'Ödeme Sil',
-    `<b>${o.ad}</b> silinecek.${o.tekrar!=='tek'?' (Sadece bu kayıt silinir, rutin devam eder.)':''}`,
+    `<b>${o.ad}</b> silinecek.${o.tekrar!=='tek'?' Bu seriyi durdurur, sonraki vade oluşmaz.':''}`,
     `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>
      <button class="btn btn-danger" onclick="odemeSilConfirm('${id}')">Sil</button>`
   );
