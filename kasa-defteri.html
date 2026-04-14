@@ -2526,6 +2526,10 @@ window.odemePlanSec = (id) => {
   const o = state.odemeler.find(x=>x.id===id);
   if(!o) return;
 
+// İşlem türü: gider
+  setTur('gider');
+
+
   // Kategoriyi setle
   const katSel = document.getElementById('islem-kategori');
   if(katSel){
@@ -2541,8 +2545,7 @@ window.odemePlanSec = (id) => {
   const tutarEl = document.getElementById('islem-tutar');
   if(tutarEl && tutar) tutarEl.value = tutar;
 
-  // İşlem türü: gider
-  setTur('gider');
+  
   showToast('Ödeme planı bilgileri yüklendi ✓');
 };
 
