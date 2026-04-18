@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#EA580C"/>
+  <!-- Para çantası gövdesi -->
+  <rect x="96" y="200" width="320" height="220" rx="28" fill="#fff"/>
+  <!-- Çanta sapı -->
+  <path d="M176 200 Q176 140 256 140 Q336 140 336 200" fill="none" stroke="#fff" stroke-width="28" stroke-linecap="round"/>
+  <!-- Para sembolü -->
+  <text x="256" y="345" text-anchor="middle" font-family="Arial,sans-serif" font-size="110" font-weight="900" fill="#EA580C">₺</text>
+</svg>
