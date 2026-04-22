@@ -2137,7 +2137,7 @@ window.kullaniciSil=async(ad)=>{
 window.cikisYap=()=>{
   closeModal();
   clearSession();
-  // clearRemembered() — beni hatırla verisini silmiyoruz, sadece oturumu kapatıyoruz
+  clearRemembered();
   state.kullanici=null;
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
