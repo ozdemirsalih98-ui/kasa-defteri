@@ -683,16 +683,14 @@ window.showModal = function(title,body,actions,extra=''){
 };
 window.closeModal = ()=>document.getElementById('modal').classList.remove('show');
 
-// ── Beni Hatırla + Oturum ──
+// ── Beni Hatırla ──
 const LS_KEY = 'kasa_remember';
-const SESSION_KEY = 'kasa_session'; // oturumu canlı tut
 function loadRemembered(){
   try {
     const s=localStorage.getItem(LS_KEY);
     if(s){
       const d=JSON.parse(s);
       if(!d.p){ localStorage.removeItem(LS_KEY); return; }
-      // setTimeout: tarayıcı autofill'ini geçersiz kılmak için 150ms bekle
       setTimeout(()=>{
         document.getElementById('login-user').value=d.u||'';
         document.getElementById('login-pass').value=d.p||'';
@@ -704,29 +702,18 @@ function loadRemembered(){
 function saveRemembered(u,p){ try{ localStorage.setItem(LS_KEY,JSON.stringify({u,p})); }catch(e){} }
 function clearRemembered(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
 
-// Oturum yönetimi: giriş yapıldıysa sayfa yenilenmesinde tekrar login ekranı çıkmasın
-function saveSession(u){ try{ sessionStorage.setItem(SESSION_KEY,u); }catch(e){} }
-function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
-
 async function tryAutoLogin(){
-  // 1) sessionStorage'da aktif oturum var mı? (F5'te korunur, sekme kapanınca silinir)
-  try{
-    const su=sessionStorage.getItem(SESSION_KEY);
-    if(su){ state.kullanici=su; document.getElementById('login-screen').style.display='none'; await initApp(); return; }
-  }catch(e){}
-  // 2) "Beni hatırla" ile kaydedilmiş kullanıcı var mı? Varsa otomatik giriş yap
+  // "Beni hatırla" ile kaydedilmiş kullanıcı var mı? Varsa otomatik giriş yap
   try{
     const s=localStorage.getItem(LS_KEY);
     if(s){
       const d=JSON.parse(s);
       if(d.u&&d.p){
-        // Firebase'den doğrula
         const snap=await getDoc(doc(db,'config','kullanicilar'));
         const liste=snap.exists()?(snap.data().liste||[]):[];
         const found=liste.find(x=>x.ad===d.u&&String(x.sifre)===d.p);
         if(found){
           state.kullanici=d.u;
-          saveSession(d.u);
           document.getElementById('login-screen').style.display='none';
           await initApp();
           return;
@@ -734,7 +721,7 @@ async function tryAutoLogin(){
       }
     }
   }catch(e){}
-  // 3) Otomatik giriş olmadı — login ekranını göster
+  // Otomatik giriş olmadı — login ekranını göster
   loadRemembered();
 }
 
@@ -755,7 +742,6 @@ window.doLogin = async () => {
     if(!found){ errEl.textContent='Kullanıcı adı veya şifre yanlış.'; errEl.style.display='flex'; return; }
     state.kullanici=u;
     if(remember) saveRemembered(u,p); else clearRemembered();
-    saveSession(u);
     document.getElementById('login-screen').style.display='none';
     await initApp();
   } catch(e){ errEl.textContent='Bağlantı hatası: '+e.message; errEl.style.display='flex'; }
@@ -2136,7 +2122,6 @@ window.kullaniciSil=async(ad)=>{
 
 window.cikisYap=()=>{
   closeModal();
-  clearSession();
   clearRemembered();
   state.kullanici=null;
   document.getElementById('app').style.display='none';
