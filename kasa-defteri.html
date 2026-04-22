@@ -705,13 +705,13 @@ function saveRemembered(u,p){ try{ localStorage.setItem(LS_KEY,JSON.stringify({u
 function clearRemembered(){ try{ localStorage.removeItem(LS_KEY); }catch(e){} }
 
 // Oturum yönetimi: giriş yapıldıysa sayfa yenilenmesinde tekrar login ekranı çıkmasın
-function saveSession(u){ try{ localStorage.setItem(SESSION_KEY,u); }catch(e){} }
-function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
+function saveSession(u){ try{ sessionStorage.setItem(SESSION_KEY,u); }catch(e){} }
+function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
 
 async function tryAutoLogin(){
-  // 1) localStorage'da aktif oturum var mı?
+  // 1) sessionStorage'da aktif oturum var mı? (F5'te korunur, sekme kapanınca silinir)
   try{
-    const su=localStorage.getItem(SESSION_KEY);
+    const su=sessionStorage.getItem(SESSION_KEY);
     if(su){ state.kullanici=su; document.getElementById('login-screen').style.display='none'; await initApp(); return; }
   }catch(e){}
   // 2) "Beni hatırla" ile kaydedilmiş kullanıcı var mı? Varsa otomatik giriş yap
