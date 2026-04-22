@@ -712,7 +712,7 @@ async function tryAutoLogin(){
   // 1) localStorage'da aktif oturum var mı?
   try{
     const su=localStorage.getItem(SESSION_KEY);
-    if(su){ state.kullanici=su; await initApp(); return; }
+    if(su){ state.kullanici=su; document.getElementById('login-screen').style.display='none'; await initApp(); return; }
   }catch(e){}
   // 2) "Beni hatırla" ile kaydedilmiş kullanıcı var mı? Varsa otomatik giriş yap
   try{
