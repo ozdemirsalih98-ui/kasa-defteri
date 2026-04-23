@@ -1926,7 +1926,10 @@ window.showStokOdemeModal=()=>{
     `<div class="form-group">
        <label class="form-label">Tutar (₺)</label>
        <input class="form-control" id="so-tutar" type="number" min="0" step="any" placeholder="0.00">
-       <div style="font-size:12px;color:var(--text2);margin-top:4px">Bakiye: <b>${fmt(bakiye)}</b></div>
+       <div style="font-size:12px;color:var(--text2);margin-top:4px;display:flex;align-items:center;gap:8px">
+         Bakiye: <b>${fmt(bakiye)}</b>
+         <button type="button" onclick="document.getElementById('so-tutar').value=${bakiye.toFixed(2)}" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;font-weight:700">Tüm bakiye</button>
+       </div>
      </div>
      <div class="form-group"><label class="form-label">Açıklama (opsiyonel)</label><input class="form-control" id="so-aciklama" type="text" placeholder=""></div>
      <div class="form-label" style="margin-bottom:8px">Kasa Seç</div>
@@ -1941,44 +1944,35 @@ window.confirmStokOdeme=async(kasa)=>{
   const aciklama=document.getElementById('so-aciklama')?.value.trim()||'';
   if(!tutar||tutar<=0){showToast('Geçerli bir tutar giriniz.');return;}
   const girisler=state.stokGirisler.filter(g=>g.firma_id===firma.id);
-  const odemeler=state.stokOdemeler.filter(o=>o.firma_id===firma.id);
-  const mevcutBakiye=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0)-odemeler.reduce((a,b)=>a+(b.tutar||0),0);
+  const mevcutOdemeler=state.stokOdemeler.filter(o=>o.firma_id===firma.id);
+  const mevcutBakiye=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0)-mevcutOdemeler.reduce((a,b)=>a+(b.tutar||0),0);
   const kalanBakiye=mevcutBakiye-tutar;
   closeModal();
-  try{
-    const ref=await addDoc(collection(db,'stok_odemeler'),{
-      firma_id:firma.id,firma_ad:firma.ad,
-      tutar,aciklama,kasa,
-      kullanici:state.kullanici,zaman:serverTimestamp()
-    });
-    state.stokOdemeler.unshift({id:ref.id,firma_id:firma.id,firma_ad:firma.ad,tutar,aciklama,kasa,kullanici:state.kullanici,zaman:{seconds:Date.now()/1000}});
-    renderStokDetay(firma);
-    renderStokFirmalar();
-    // Kasa işlem girişine yönlendir
-    kasaIslemAc(kasa);
-    setTur('gider');
-    // Gelir ve transfer butonlarını pasif yap
-    document.getElementById('seg-gelir').disabled=true;
-    document.getElementById('seg-gelir').style.opacity='0.35';
-    document.getElementById('seg-gelir').style.pointerEvents='none';
-    document.getElementById('seg-transfer').disabled=true;
-    document.getElementById('seg-transfer').style.opacity='0.35';
-    document.getElementById('seg-transfer').style.pointerEvents='none';
-    // Kategori: firma adı
-    const katSel=document.getElementById('islem-kategori');
-    if(katSel){
-      const opt=Array.from(katSel.options).find(o=>o.value===firma.ad);
-      if(opt) katSel.value=firma.ad;
-    }
-    // Açıklama: kullanıcı notu + kalan bakiye + SP etiketi
-    const aciklamaEl=document.getElementById('islem-aciklama');
-    const aciklamaMetni=(aciklama||firma.ad+' ödemesi')+' | Kalan bakiye: '+fmt(kalanBakiye)+' [SP:'+ref.id+']';
-    if(aciklamaEl) aciklamaEl.value=aciklamaMetni;
-    // Tutar
-    const tutarEl=document.getElementById('islem-tutar');
-    if(tutarEl) tutarEl.value=tutar;
-    showToast('Kasa işlemini kaydedin ✓');
-  }catch(e){showToast('Hata: '+e.message);}
+  // Firebase'e henüz yazma — sadece ref al (ID üret)
+  const spRef=doc(collection(db,'stok_odemeler'));
+  window._pendingStokOdeme={ref:spRef,firma_id:firma.id,firma_ad:firma.ad,tutar,aciklama,kasa,kullanici:state.kullanici};
+  // Kasa işlem girişine yönlendir
+  kasaIslemAc(kasa);
+  setTur('gider');
+  // Gelir ve transfer butonlarını pasif yap
+  document.getElementById('seg-gelir').disabled=true;
+  document.getElementById('seg-gelir').style.opacity='0.35';
+  document.getElementById('seg-gelir').style.pointerEvents='none';
+  document.getElementById('seg-transfer').disabled=true;
+  document.getElementById('seg-transfer').style.opacity='0.35';
+  document.getElementById('seg-transfer').style.pointerEvents='none';
+  // Kategori: firma adı
+  const katSel=document.getElementById('islem-kategori');
+  if(katSel){
+    const opt=Array.from(katSel.options).find(o=>o.value===firma.ad);
+    if(opt) katSel.value=firma.ad;
+  }
+  // Açıklama + kalan bakiye + SP etiketi
+  const aciklamaEl=document.getElementById('islem-aciklama');
+  if(aciklamaEl) aciklamaEl.value=(aciklama||firma.ad+' ödemesi')+' | Kalan bakiye: '+fmt(kalanBakiye)+' [SP:'+spRef.id+']';
+  const tutarEl=document.getElementById('islem-tutar');
+  if(tutarEl) tutarEl.value=tutar;
+  showToast('Kasa işlemini kaydedin ✓');
 };
 
 // Yönetim
@@ -3217,6 +3211,17 @@ window.odemePlanSec = (id) => {
 
 // İşlem kaydedildikten sonra OP:id varsa ödendi işaretle
 async function kontolOdemeRef(aciklama){
+  // SP: stok ödemesi — işlem kaydedilince stok_odemeler'e yaz
+  const spMatch = aciklama?.match(/\[SP:([^\]]+)\]/);
+  if(spMatch && window._pendingStokOdeme && window._pendingStokOdeme.ref.id===spMatch[1]){
+    const p=window._pendingStokOdeme;
+    try{
+      await setDoc(p.ref,{firma_id:p.firma_id,firma_ad:p.firma_ad,tutar:p.tutar,aciklama:p.aciklama,kasa:p.kasa,kullanici:p.kullanici,zaman:serverTimestamp()});
+      state.stokOdemeler.unshift({id:p.ref.id,...p,zaman:{seconds:Date.now()/1000}});
+      renderStokFirmalar();
+    }catch(e){console.warn('SP kayıt hata',e);}
+    window._pendingStokOdeme=null;
+  }
   const match = aciklama?.match(/\[OP:([^\]]+)\]/);
   if(!match) return;
   const opId = match[1];
@@ -3246,6 +3251,14 @@ async function kontolOdemeRef(aciklama){
 
 // ── NAV ──
 window.goPage=page=>{
+  // İşlem sayfasından çıkılınca bekleyen stok ödemesini iptal et
+  if(page!=='islem' && window._pendingStokOdeme){
+    window._pendingStokOdeme=null;
+    ['seg-gelir','seg-transfer'].forEach(id=>{
+      const btn=document.getElementById(id);
+      if(btn){btn.disabled=false;btn.style.opacity='';btn.style.pointerEvents='';}
+    });
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
