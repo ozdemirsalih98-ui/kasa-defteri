@@ -944,38 +944,47 @@ window.showGsModal=async()=>{
   if(ykBal<0){ showModal('Hata','Yazar kasa bakiyesi negatif olamaz.','<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>'); return; }
   const ozet=hesaplaGunOzeti();
   showModal('Gün Sonu Yap',
-    `<b>Gün Sonu Özeti</b><br><br>Ciro: <b>${fmt(ozet.ciro)}</b><br>Toplam Gider: <b>${fmt(ozet.toplamGider)}</b><br>YK Bakiye: <b>${fmt(ykBal)}</b> → Cep'e transfer edilecek<br><br>Onaylıyor musunuz?`,
+    `<b>Gün Sonu Özeti</b><br><br>Ciro: <b>${fmt(ozet.ciro)}</b><br>Toplam Gider: <b>${fmt(ozet.toplamGider)}</b><br>YK Bakiye: <b>${fmt(ykBal)}</b> → Cep'e transfer edilecek<br><br><label style="display:block;margin-bottom:4px;font-weight:600">Kasada bırakılan bozuk para:</label><input id="gs-bozuk-para" type="number" min="0" step="1" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:4px"><small style="color:var(--text-muted)">Cep'ten YK'ya transfer edilir. Günsonu silinince geri alınır.</small><br><br>Onaylıyor musunuz?`,
     `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-success" onclick="doGS()">Gün Sonu Yap</button>`
   );
 };
 
 window.doGS=async()=>{
+  const bozukPara=parseFloat(document.getElementById('gs-bozuk-para')?.value)||0;
   closeModal();
   try {
     const ykBal=getBakiye('YK');
-    const transferSharedId=uuid();
     const gbTarih=state.aktifGB.tarih;
 
     // ADIM 1: GS doküman referansını ÖNCEDEN oluştur (id biliniyor olsun)
     const gsRef=doc(collection(db,'gunluk'));
     const gsId=gsRef.id;
 
-    // ADIM 2: Önce YK→C transferini yaz — gs_id ile GS'a bağla
+    // ADIM 2: YK→C transferi ve varsa bozuk para C→YK transferi — aynı batch, aynı gs_id
+    const batch1=writeBatch(db);
+    let batchHasOps=false;
     if(ykBal>0){
-      const batch1=writeBatch(db);
+      const sharedId=uuid();
       const r1=doc(collection(db,'islemler')); const r2=doc(collection(db,'islemler'));
-      batch1.set(r1,{sharedId:transferSharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
-      batch1.set(r2,{sharedId:transferSharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
-      await batch1.commit();
-      // State güncelle (ciro hesabı gs_transfer'ları hariç tutar)
-      await loadAllIslemler(); await loadIslemler();
+      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batchHasOps=true;
     }
+    if(bozukPara>0){
+      const sharedId=uuid();
+      const r3=doc(collection(db,'islemler')); const r4=doc(collection(db,'islemler'));
+      batch1.set(r3,{sharedId,tur:'transfer',kasadan:'C',kasaya:'YK',tutar:bozukPara,aciklama:'günsonu bozuk para',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih,bozuk_para:true});
+      batch1.set(r4,{sharedId,tur:'transfer_alici',kasadan:'C',kasaya:'YK',tutar:bozukPara,aciklama:'günsonu bozuk para',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih,bozuk_para:true});
+      batchHasOps=true;
+    }
+    if(batchHasOps) await batch1.commit();
+    await loadAllIslemler(); await loadIslemler();
 
-    // ADIM 3: Özeti hesapla
+    // ADIM 3: Özeti hesapla (transferler hariç, ciro doğru)
     const ozet=hesaplaGunOzeti();
 
     // ADIM 4: GS kaydını önceden oluşturulan ref ile yaz
-    await setDoc(gsRef,{tur:'GS',tarih:gbTarih,zaman:serverTimestamp(),kullanici:state.kullanici,ozet});
+    await setDoc(gsRef,{tur:'GS',tarih:gbTarih,zaman:serverTimestamp(),kullanici:state.kullanici,ozet,...(bozukPara>0?{bozuk_para:bozukPara}:{})});
 
     showToast('Gün sonu yapıldı ✓');
     await loadGunluk(); await loadAllIslemler(); await loadIslemler(); renderApp();
