@@ -1022,10 +1022,11 @@ function hesaplaGunOzeti(){
     if(i.tur==='gider'&&i.kasa==='B') bankGider+=i.tutar;
     if(i.tur==='gider'&&i.kasa==='KK') kkGider+=i.tutar;
   }
-  // Önceki günün bozuk parasını ciro'dan düş — gelir girilmemişse negatife düşürme
+  // Önceki günün bozuk parasını ciro'dan düş — sadece YK gelir kaydı varsa uygula
   const gbSn=state.aktifGB?.zaman?.seconds||0;
   const prevGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)<gbSn);
-  if(prevGS?.bozuk_para) ciro=Math.max(0,ciro-prevGS.bozuk_para);
+  const hasYkGelir=is.some(i=>i.tur==='gelir'&&i.kasa==='YK');
+  if(prevGS?.bozuk_para&&hasYkGelir) ciro=Math.max(0,ciro-prevGS.bozuk_para);
   const nkGelir=is.filter(i=>(i.tur==='gelir'||i.tur==='yk_gider_gelir')&&(i.kasa==='YK'||i.kasa==='C')).reduce((a,b)=>a+b.tutar,0);
   const nkGider=is.filter(i=>i.tur==='gider'&&(i.kasa==='YK'||i.kasa==='C')).reduce((a,b)=>a+b.tutar,0);
   return{ciro,ykGider,cepGider,toplamGider:ykGider+cepGider,posCiro,sonuc:nkGelir-nkGider,bankGelir,bankGider,kkGider};
