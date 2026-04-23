@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v23</title>
+<title>Kasa Defteri v24</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -171,6 +171,14 @@
 
   .stok-urun-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .stok-urun-row:last-child { border-bottom: none; }
+  .firma-card { display: flex; justify-content: space-between; align-items: center; background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow-sm); border: 1.5px solid var(--border); cursor: pointer; transition: box-shadow .15s; }
+  .firma-card:active { box-shadow: var(--shadow); }
+  .firma-card-ad { font-size: 16px; font-weight: 900; }
+  .firma-card-meta { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .firma-card-bakiye { font-size: 18px; font-weight: 900; font-family: 'Roboto Mono', monospace; color: var(--primary); }
+  .stok-islem-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .stok-islem-row:last-child { border-bottom: none; }
+  .stok-islem-info { flex: 1; min-width: 0; }
 
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text3); font-size: 14px; font-weight: 600; }
   .empty-state .emoji { font-size: 40px; display: block; margin-bottom: 10px; }
@@ -491,33 +499,54 @@
     <!-- STOK -->
     <div class="page" id="page-stok">
       <h2 style="font-size:20px;font-weight:900;margin-bottom:14px">Stok</h2>
-      <div class="card" style="margin-bottom:12px">
-        <div class="card-header">Stok Girişi</div>
-        <div class="card-body">
-          <div class="form-group">
-            <label class="form-label">Ürün</label>
-            <div style="display:flex;gap:8px">
-              <select class="form-control" id="stok-urun" style="flex:1" onchange="stokUrunDegisti()"></select>
-              <button class="btn btn-ghost btn-sm" onclick="showUrunEkleModal()">+ Ekle</button>
-            </div>
-          </div>
-          <div class="form-group"><label class="form-label">Paket Türü</label><select class="form-control" id="stok-paket"></select></div>
-          <div class="form-group"><label class="form-label">Paket Adedi</label><input class="form-control" id="stok-adet" type="number" min="1" placeholder="1" oninput="stokHesapla()"></div>
-          <div class="form-group" style="margin-bottom:0"><label class="form-label">Toplam (hesaplanan)</label><input class="form-control" id="stok-toplam" type="number" placeholder="0" readonly style="background:var(--surface2)"></div>
-        </div>
-        <div style="padding:0 16px 16px"><button class="btn btn-primary" onclick="stokKaydet()">Stok Girişi Yap</button></div>
+      <div class="seg-control" style="margin-bottom:16px" id="stok-seg">
+        <button class="seg-btn active" onclick="stokTab('firmalar',this)">Firmalar</button>
+        <button class="seg-btn" onclick="stokTab('rapor',this)">Rapor</button>
+        <button class="seg-btn" onclick="stokTab('yonetim',this)">Yönetim</button>
       </div>
-      <div class="section-title">Güncel Stok</div>
-      <div class="card" style="margin-bottom:12px"><div class="card-body" id="stok-ozet-liste" style="padding:0 16px"><div class="loader"><div class="spinner"></div></div></div></div>
-      <div class="section-title">Son 5 Giriş</div>
-      <div class="card" style="margin-bottom:12px"><div class="card-body" id="stok-son-giris" style="padding:0 16px"><div class="loader"><div class="spinner"></div></div></div></div>
-      <div class="card">
-        <div class="card-header">CSV Export — Stok</div>
-        <div class="card-body">
-          <div class="form-group"><label class="form-label">Başlangıç</label><input class="form-control" id="stok-csv-start" type="date"></div>
-          <div class="form-group" style="margin-bottom:0"><label class="form-label">Bitiş</label><input class="form-control" id="stok-csv-end" type="date"></div>
+
+      <!-- FİRMALAR -->
+      <div id="stok-tab-firmalar">
+        <div id="stok-firma-liste"><div class="loader"><div class="spinner"></div></div></div>
+      </div>
+
+      <!-- FİRMA DETAY -->
+      <div id="stok-firma-detay" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button class="btn btn-ghost btn-sm" onclick="stokFirmaGeri()">← Geri</button>
+          <h3 id="stok-detay-baslik" style="font-size:18px;font-weight:900;flex:1"></h3>
         </div>
-        <div style="padding:0 16px 16px"><button class="btn btn-outline" onclick="stokCsvExport()">CSV İndir</button></div>
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="btn btn-primary btn-sm" style="flex:1" onclick="showStokGirisModal()">+ Stok Girişi</button>
+          <button class="btn btn-outline btn-sm" style="flex:1" onclick="showStokOdemeModal()">Ödeme Yap</button>
+        </div>
+        <div id="stok-detay-bakiye" style="margin-bottom:12px"></div>
+        <div id="stok-detay-islemler"></div>
+      </div>
+
+      <!-- RAPOR -->
+      <div id="stok-tab-rapor" style="display:none">
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-body">
+            <div class="form-group"><label class="form-label">Başlangıç</label><input class="form-control" id="sr-start" type="date"></div>
+            <div class="form-group"><label class="form-label">Bitiş</label><input class="form-control" id="sr-end" type="date"></div>
+            <div class="form-group"><label class="form-label">Firma (opsiyonel)</label><select class="form-control" id="sr-firma"><option value="">— Tüm Firmalar —</option></select></div>
+            <div class="form-group" style="margin-bottom:0"><label class="form-label">Ürün (opsiyonel)</label><select class="form-control" id="sr-urun"><option value="">— Tüm Ürünler —</option></select></div>
+          </div>
+          <div style="padding:0 16px 16px;display:flex;gap:8px">
+            <button class="btn btn-primary" style="flex:1" onclick="loadStokRapor()">Sorgula</button>
+            <button class="btn btn-outline btn-sm" onclick="stokRaporExcel()">Excel</button>
+          </div>
+        </div>
+        <div id="sr-sonuc"></div>
+      </div>
+
+      <!-- YÖNETİM -->
+      <div id="stok-tab-yonetim" style="display:none">
+        <div style="margin-bottom:12px">
+          <button class="btn btn-primary" onclick="showFirmaEkleModal()">+ Firma Ekle</button>
+        </div>
+        <div id="stok-yonetim-liste"></div>
       </div>
     </div>
 
@@ -650,6 +679,8 @@ let state = {
   kasalar: [],
   kategoriler: { gelir: [], gider: [] }, // FIX 4
   stokUrunler: [],
+  stokFirmalar: [],
+  stokGirisler: [],
   baslangic: {},
   islemler: [],      // aktif gün (özet/anasayfa)
   allIslemler: [],   // tüm zamanlar (bakiye + işlemler sayfası)
@@ -820,12 +851,14 @@ function scheduleRtRender(){
 
 // FIX 4: kategoriler {gelir, gider} formatında yükleniyor
 async function loadConfig(){
-  const [kasSnap,katSnap,urunSnap]=await Promise.all([
+  const [kasSnap,katSnap,urunSnap,firmaSnap]=await Promise.all([
     getDoc(doc(db,'config','kasalar')),
     getDoc(doc(db,'config','kategoriler')),
     getDoc(doc(db,'config','stok_urunler')).catch(()=>null),
+    getDoc(doc(db,'config','stok_firmalar')).catch(()=>null),
   ]);
   state.kasalar=kasSnap.exists()?(kasSnap.data().liste||[]):['YK','C','P','B','KK'];
+  state.stokFirmalar=firmaSnap&&firmaSnap.exists()?(firmaSnap.data().liste||[]):[];
 
   if(katSnap.exists()){
     const d=katSnap.data();
@@ -868,11 +901,9 @@ async function loadAllIslemler(){
 }
 
 async function loadStok(){
-  const snap=await getDocs(query(collection(db,'stok'),orderBy('zaman','desc')));
-  state.stok=snap.docs.map(d=>({id:d.id,...d.data()}));
-  const mutSnap=await getDocs(collection(db,'mutabakat'));
-  state.mutabakat=mutSnap.docs.map(d=>({id:d.id,...d.data()}));
-  renderStok();
+  const snap=await getDocs(query(collection(db,'stok_girisler'),orderBy('zaman','desc')));
+  state.stokGirisler=snap.docs.map(d=>({id:d.id,...d.data()}));
+  renderStokFirmalar();
 }
 
 function updateGbBadge(){
@@ -1651,123 +1682,422 @@ window.hizliKategoriEkle=async(tur)=>{
 };
 
 // ── STOK ──
-window.stokUrunDegisti=()=>{
-  const urunAd=document.getElementById('stok-urun').value;
-  const urun=state.stokUrunler.find(u=>u.ad===urunAd);
-  const paketSel=document.getElementById('stok-paket');
-  if(urun&&urun.paketler){ paketSel.innerHTML=urun.paketler.map(p=>`<option value="${p.ad}" data-miktar="${p.miktar}">${p.ad} (${p.miktar} ${urun.birim||'adet'})</option>`).join(''); }
-  else { paketSel.innerHTML='<option>—</option>'; }
-  stokHesapla();
-};
+let _aktifFirmaId=null;
+let _srSonuclar=[];
 
-window.stokHesapla=()=>{
-  const urunAd=document.getElementById('stok-urun').value;
-  const adet=parseFloat(document.getElementById('stok-adet').value)||0;
-  const paketSel=document.getElementById('stok-paket');
-  const opt=paketSel.options[paketSel.selectedIndex];
-  const miktar=opt?parseFloat(opt.dataset.miktar)||0:0;
-  document.getElementById('stok-toplam').value=(adet*miktar)||'';
-};
-
-window.stokKaydet=async()=>{
-  if(!state.aktifGB||state.aktifGS){showModal('Uyarı','Önce gün başı yapmalısınız.','<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');return;}
-  const urun=document.getElementById('stok-urun').value;
-  const paket=document.getElementById('stok-paket').value;
-  const adet=parseFloat(document.getElementById('stok-adet').value);
-  const toplam=parseFloat(document.getElementById('stok-toplam').value);
-  if(!urun||!adet||adet<=0){showToast('Ürün ve adet giriniz.');return;}
-  const urunObj=state.stokUrunler.find(u=>u.ad===urun);
-  showModal('Onay',`${urun} — ${adet} ${paket} (${toplam} ${urunObj?.birim||'adet'}) girilsin mi?`,
-    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="confirmStokKaydet()">Tamam</button>`
-  );
-};
-
-window.confirmStokKaydet=async()=>{
-  closeModal();
-  const urun=document.getElementById('stok-urun').value;
-  const paket=document.getElementById('stok-paket').value;
-  const adet=parseFloat(document.getElementById('stok-adet').value);
-  const toplam=parseFloat(document.getElementById('stok-toplam').value);
-  const urunObj=state.stokUrunler.find(u=>u.ad===urun);
-  try {
-    await addDoc(collection(db,'stok'),{urun,paket_turu:paket,paket_adedi:adet,toplam,birim:urunObj?.birim||'adet',kullanici:state.kullanici,zaman:serverTimestamp(),gb_tarihi:state.aktifGB?.tarih});
-    showToast('Stok girildi ✓');
-    document.getElementById('stok-adet').value='';
-    document.getElementById('stok-toplam').value='';
-    await loadStok();
-  } catch(e){showToast('Hata: '+e.message);}
-};
-
-function renderStok(){
-  const ozetEl=document.getElementById('stok-ozet-liste');
-  if(!state.stokUrunler.length){ ozetEl.innerHTML='<div class="empty-state"><span class="emoji">📦</span>Ürün tanımlanmamış</div>'; }
-  else {
-    ozetEl.innerHTML=state.stokUrunler.map(u=>{
-      const mut=state.mutabakat.find(m=>m.urun===u.ad);
-      const girisler=state.stok.filter(s=>s.urun===u.ad&&(!mut||s.zaman?.seconds>mut.zaman?.seconds));
-      const toplam=girisler.reduce((a,b)=>a+(b.toplam||0),0);
-      return `<div class="stok-urun-row">
-        <div><div style="font-weight:800;font-size:14px">${u.ad}</div><div style="font-size:12px;color:var(--text2)">${u.birim||'adet'}</div></div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-weight:900;font-size:16px;font-family:'Roboto Mono',monospace">${toplam||0}</div>
-          <button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="showMutabakat('${u.ad}')">Mütabakat</button>
-        </div>
-      </div>`;
-    }).join('');
-  }
-  const sonEl=document.getElementById('stok-son-giris');
-  const son5=state.stok.slice(0,5);
-  if(!son5.length){sonEl.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Giriş yok</div>';}
-  else { sonEl.innerHTML=son5.map(s=>`<div class="stok-urun-row"><div><div style="font-weight:800;font-size:14px">${s.urun}</div><div style="font-size:12px;color:var(--text2)">${s.paket_turu} × ${s.paket_adedi} = ${s.toplam} ${s.birim||'adet'}</div><div style="font-size:11px;color:var(--text3)">${fmtDate(s.zaman)} • ${s.kullanici||''}</div></div></div>`).join(''); }
-  const stokUrunSel=document.getElementById('stok-urun');
-  if(stokUrunSel){
-    stokUrunSel.innerHTML=state.stokUrunler.map(u=>`<option value="${u.ad}">${u.ad}</option>`).join('')+'<option value="__yeni__">+ Yeni Ürün…</option>';
-    stokUrunSel.addEventListener('change',e=>{if(e.target.value==='__yeni__') showUrunEkleModal();});
-    stokUrunDegisti();
-  }
+function stokTab(tab,btn){
+  document.querySelectorAll('#stok-seg .seg-btn').forEach(b=>b.classList.toggle('active',b===btn));
+  document.getElementById('stok-tab-firmalar').style.display=tab==='firmalar'?'block':'none';
+  document.getElementById('stok-firma-detay').style.display='none';
+  document.getElementById('stok-tab-rapor').style.display=tab==='rapor'?'block':'none';
+  document.getElementById('stok-tab-yonetim').style.display=tab==='yonetim'?'block':'none';
+  document.getElementById('stok-seg').style.display='flex';
+  if(tab==='rapor') populateRaporFiltreler();
+  if(tab==='yonetim') renderStokYonetim();
 }
 
-window.showMutabakat=async(urun)=>{
-  showModal('Mütabakat',`"${urun}" için mütabakat yapılacak. Bu ürünün sayacı sıfırlanacak.`,
-    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-danger" onclick="doMutabakat('${urun}')">Mütabakat Yap</button>`
+function renderStokFirmalar(){
+  const el=document.getElementById('stok-firma-liste');
+  if(!el) return;
+  if(!state.stokFirmalar.length){
+    el.innerHTML='<div class="empty-state"><span class="emoji">🏭</span>Henüz firma eklenmedi<br><small>Yönetim sekmesinden ekleyebilirsiniz</small></div>';
+    return;
+  }
+  el.innerHTML=state.stokFirmalar.map(f=>{
+    const girisler=state.stokGirisler.filter(g=>g.firma_id===f.id);
+    const toplam=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0);
+    return `<div class="firma-card" onclick="stokFirmaTikla('${f.id}')">
+      <div class="firma-card-info">
+        <div class="firma-card-ad">${f.ad}</div>
+        <div class="firma-card-meta">${f.urunler?.length||0} ürün · ${girisler.length} giriş</div>
+      </div>
+      <div class="firma-card-bakiye">${fmt(toplam)}</div>
+    </div>`;
+  }).join('');
+}
+
+function stokFirmaTikla(firmaId){
+  _aktifFirmaId=firmaId;
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  if(!firma) return;
+  document.getElementById('stok-tab-firmalar').style.display='none';
+  document.getElementById('stok-firma-detay').style.display='block';
+  document.getElementById('stok-seg').style.display='none';
+  document.getElementById('stok-detay-baslik').textContent=firma.ad;
+  renderStokDetay(firma);
+}
+
+function stokFirmaGeri(){
+  _aktifFirmaId=null;
+  document.getElementById('stok-firma-detay').style.display='none';
+  document.getElementById('stok-tab-firmalar').style.display='block';
+  document.getElementById('stok-seg').style.display='flex';
+}
+
+function renderStokDetay(firma){
+  const girisler=state.stokGirisler.filter(g=>g.firma_id===firma.id).sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0));
+  const toplam=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0);
+  document.getElementById('stok-detay-bakiye').innerHTML=`
+    <div class="card"><div class="card-body" style="padding:14px 16px">
+      <div style="font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Toplam Alım</div>
+      <div style="font-size:24px;font-weight:900;font-family:'Roboto Mono',monospace;color:var(--primary)">${fmt(toplam)}</div>
+    </div></div>`;
+  const el=document.getElementById('stok-detay-islemler');
+  if(!girisler.length){ el.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Henüz giriş yok</div>'; return; }
+  el.innerHTML=`<div class="section-title">Son İşlemler</div>
+    <div class="card"><div class="card-body" style="padding:0 16px">
+      ${girisler.slice(0,30).map(g=>`
+        <div class="stok-islem-row">
+          <div class="stok-islem-info">
+            <div style="font-weight:800;font-size:14px">${g.urun_ad}</div>
+            <div style="font-size:12px;color:var(--text2)">${g.miktar} ${g.birim} · ${fmtDate(g.zaman)} · ${g.kullanici||''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="text-align:right">
+              <div style="font-weight:900;font-size:14px;font-family:'Roboto Mono',monospace">${fmt(g.toplam_tutar)}</div>
+              <div style="font-size:11px;color:var(--text3)">${fmt(g.birim_fiyat)}/${g.birim}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="padding:6px 8px;font-size:12px" onclick="stokGirisSil('${g.id}',event)">✕</button>
+          </div>
+        </div>`).join('')}
+    </div></div>`;
+}
+
+window.stokGirisSil=(id,e)=>{
+  e.stopPropagation();
+  showModal('Sil','Bu giriş silinsin mi?',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-danger" onclick="confirmStokGirisSil('${id}')">Sil</button>`
   );
 };
 
-window.doMutabakat=async(urun)=>{
+window.confirmStokGirisSil=async(id)=>{
   closeModal();
-  try { await addDoc(collection(db,'mutabakat'),{urun,zaman:serverTimestamp(),kullanici:state.kullanici}); showToast('Mütabakat yapıldı ✓'); await loadStok(); }
-  catch(e){showToast('Hata: '+e.message);}
+  try{
+    await deleteDoc(doc(db,'stok_girisler',id));
+    state.stokGirisler=state.stokGirisler.filter(g=>g.id!==id);
+    showToast('Silindi ✓');
+    const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+    if(firma) renderStokDetay(firma);
+    renderStokFirmalar();
+  }catch(e){showToast('Hata: '+e.message);}
 };
 
-window.showUrunEkleModal=()=>{
-  showModal('Yeni Ürün Ekle','Ürün adı ve paket bilgilerini giriniz:',
-    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="doUrunEkle()">Ekle</button>`,
-    `<div style="margin-bottom:14px">
-      <div class="form-group"><label class="form-label">Ürün Adı</label><input id="urun-ad" class="form-control" type="text" placeholder="Örn: Acı"></div>
-      <div class="form-group"><label class="form-label">Birim</label><input id="urun-birim" class="form-control" type="text" placeholder="porsiyon, kg, adet…"></div>
-      <div class="form-group"><label class="form-label">Paket 1 Adı</label><input id="p1-ad" class="form-control" type="text" placeholder="Küçük"></div>
-      <div class="form-group"><label class="form-label">Paket 1 Miktar</label><input id="p1-miktar" class="form-control" type="number" placeholder="50"></div>
-      <div class="form-group"><label class="form-label">Paket 2 Adı (isteğe bağlı)</label><input id="p2-ad" class="form-control" type="text" placeholder="Büyük"></div>
-      <div class="form-group" style="margin-bottom:0"><label class="form-label">Paket 2 Miktar</label><input id="p2-miktar" class="form-control" type="number" placeholder="100"></div>
-    </div>`
+window.showStokGirisModal=()=>{
+  const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+  if(!firma) return;
+  if(!firma.urunler?.length){showToast('Bu firmaya ürün tanımlanmamış.');return;}
+  const urunOpts=(firma.urunler||[]).map(u=>`<option value="${u.id}">${u.ad} (${u.birim})</option>`).join('');
+  showModal('Stok Girişi','',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="confirmStokGiris()">Kaydet</button>`,
+    `<div class="form-group"><label class="form-label">Ürün</label><select class="form-control" id="sg-urun" onchange="sgUrunDegisti()">${urunOpts}</select></div>
+     <div class="form-group"><label class="form-label">Miktar</label><input class="form-control" id="sg-miktar" type="number" min="0" step="any" placeholder="0" oninput="sgHesapla('miktar')"></div>
+     <div class="form-group"><label class="form-label">Birim Fiyat (₺)</label><input class="form-control" id="sg-birim-fiyat" type="number" min="0" step="any" placeholder="0.00" oninput="sgHesapla('birim')"></div>
+     <div class="form-group" style="margin-bottom:0"><label class="form-label">Toplam Tutar (₺)</label><input class="form-control" id="sg-toplam" type="number" min="0" step="any" placeholder="0.00" oninput="sgHesapla('toplam')"></div>`
+  );
+  setTimeout(()=>sgUrunDegisti(),100);
+};
+
+window.sgUrunDegisti=()=>{
+  const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+  if(!firma) return;
+  const urunId=document.getElementById('sg-urun')?.value;
+  const urun=(firma.urunler||[]).find(u=>u.id===urunId);
+  if(!urun) return;
+  const bfEl=document.getElementById('sg-birim-fiyat');
+  if(!bfEl) return;
+  if(urun.sabit_fiyat&&urun.fiyat){
+    bfEl.value=urun.fiyat;
+    bfEl.readOnly=true;
+    bfEl.style.background='var(--surface2)';
+    sgHesapla('birim');
+  } else {
+    bfEl.value='';
+    bfEl.readOnly=false;
+    bfEl.style.background='';
+  }
+};
+
+window.sgHesapla=(kaynak)=>{
+  const miktar=parseFloat(document.getElementById('sg-miktar')?.value)||0;
+  const birimFiyat=parseFloat(document.getElementById('sg-birim-fiyat')?.value)||0;
+  if(kaynak==='miktar'||kaynak==='birim'){
+    if(miktar&&birimFiyat){
+      const t=document.getElementById('sg-toplam');
+      if(t) t.value=(miktar*birimFiyat).toFixed(2);
+    }
+  } else if(kaynak==='toplam'){
+    const toplam=parseFloat(document.getElementById('sg-toplam')?.value)||0;
+    if(miktar&&toplam){
+      const b=document.getElementById('sg-birim-fiyat');
+      if(b&&!b.readOnly) b.value=(toplam/miktar).toFixed(4);
+    }
+  }
+};
+
+window.confirmStokGiris=async()=>{
+  const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+  if(!firma) return;
+  const urunId=document.getElementById('sg-urun')?.value;
+  const urun=(firma.urunler||[]).find(u=>u.id===urunId);
+  const miktar=parseFloat(document.getElementById('sg-miktar')?.value);
+  const birimFiyat=parseFloat(document.getElementById('sg-birim-fiyat')?.value)||0;
+  const toplamTutar=parseFloat(document.getElementById('sg-toplam')?.value)||0;
+  if(!urun||!miktar||miktar<=0){showToast('Ürün ve miktar giriniz.');return;}
+  if(!birimFiyat&&!toplamTutar){showToast('Fiyat bilgisi giriniz.');return;}
+  const bf=birimFiyat||(toplamTutar/miktar);
+  const tt=toplamTutar||(miktar*birimFiyat);
+  closeModal();
+  try{
+    const ref=await addDoc(collection(db,'stok_girisler'),{
+      firma_id:firma.id,firma_ad:firma.ad,
+      urun_id:urun.id,urun_ad:urun.ad,birim:urun.birim,
+      miktar,birim_fiyat:bf,toplam_tutar:tt,
+      kullanici:state.kullanici,zaman:serverTimestamp()
+    });
+    state.stokGirisler.unshift({id:ref.id,firma_id:firma.id,firma_ad:firma.ad,urun_id:urun.id,urun_ad:urun.ad,birim:urun.birim,miktar,birim_fiyat:bf,toplam_tutar:tt,kullanici:state.kullanici,zaman:{seconds:Date.now()/1000}});
+    showToast('Stok girildi ✓');
+    renderStokDetay(firma);
+    renderStokFirmalar();
+  }catch(e){showToast('Hata: '+e.message);}
+};
+
+window.showStokOdemeModal=()=>{
+  showModal('Ödeme Yap','Ödeme özelliği yakında eklenecek.','<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
+};
+
+// Yönetim
+function renderStokYonetim(){
+  const el=document.getElementById('stok-yonetim-liste');
+  if(!el) return;
+  if(!state.stokFirmalar.length){
+    el.innerHTML='<div class="empty-state"><span class="emoji">🏭</span>Henüz firma yok</div>';
+    return;
+  }
+  el.innerHTML=state.stokFirmalar.map(f=>`
+    <div class="card" style="margin-bottom:12px">
+      <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:900">${f.ad}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="showUrunEkleModal('${f.id}')">+ Ürün</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="showFirmaSilModal('${f.id}')">Sil</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0 16px">
+        ${!(f.urunler?.length)?'<div style="padding:12px 0;color:var(--text3);font-size:13px">Ürün eklenmemiş</div>':
+          f.urunler.map(u=>`
+            <div class="stok-urun-row">
+              <div>
+                <div style="font-weight:800;font-size:14px">${u.ad}</div>
+                <div style="font-size:12px;color:var(--text2)">${u.birim} · ${u.sabit_fiyat?fmt(u.fiyat)+'/'+u.birim:'Değişken fiyat'}</div>
+              </div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-ghost btn-sm" onclick="showUrunGuncelleModal('${f.id}','${u.id}')">Düzenle</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="showUrunSilModal('${f.id}','${u.id}')">Sil</button>
+              </div>
+            </div>`).join('')
+        }
+      </div>
+    </div>`).join('');
+}
+
+window.showFirmaEkleModal=()=>{
+  showModal('Firma Ekle','',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="confirmFirmaEkle()">Ekle</button>`,
+    `<div class="form-group" style="margin-bottom:0"><label class="form-label">Firma Adı</label><input class="form-control" id="firma-ad-input" type="text" placeholder="Firma adını giriniz"></div>`
   );
 };
 
-window.doUrunEkle=async()=>{
-  const ad=document.getElementById('urun-ad')?.value.trim();
-  const birim=document.getElementById('urun-birim')?.value.trim();
-  const p1ad=document.getElementById('p1-ad')?.value.trim();
-  const p1m=parseFloat(document.getElementById('p1-miktar')?.value);
-  const p2ad=document.getElementById('p2-ad')?.value.trim();
-  const p2m=parseFloat(document.getElementById('p2-miktar')?.value);
-  if(!ad||!birim||!p1ad||!p1m){showToast('Zorunlu alanları doldurunuz.');return;}
+window.confirmFirmaEkle=async()=>{
+  const ad=document.getElementById('firma-ad-input')?.value.trim();
+  if(!ad){showToast('Firma adı giriniz.');return;}
   closeModal();
-  const paketler=[{ad:p1ad,miktar:p1m}];
-  if(p2ad&&p2m) paketler.push({ad:p2ad,miktar:p2m});
-  state.stokUrunler.push({ad,birim,paketler});
-  await setDoc(doc(db,'config','stok_urunler'),{liste:state.stokUrunler});
+  state.stokFirmalar.push({id:uuid(),ad,urunler:[]});
+  await setDoc(doc(db,'config','stok_firmalar'),{liste:state.stokFirmalar});
+  showToast('Firma eklendi ✓');
+  renderStokYonetim();
+  renderStokFirmalar();
+};
+
+window.showFirmaSilModal=(firmaId)=>{
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  showModal('Firma Sil',`"${firma?.ad}" silinsin mi?`,
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-danger" onclick="confirmFirmaSil('${firmaId}')">Sil</button>`
+  );
+};
+
+window.confirmFirmaSil=async(firmaId)=>{
+  closeModal();
+  state.stokFirmalar=state.stokFirmalar.filter(f=>f.id!==firmaId);
+  await setDoc(doc(db,'config','stok_firmalar'),{liste:state.stokFirmalar});
+  showToast('Firma silindi ✓');
+  renderStokYonetim();
+  renderStokFirmalar();
+};
+
+window.showUrunEkleModal=(firmaId)=>{
+  showModal('Ürün Ekle','',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="confirmUrunEkle('${firmaId}')">Ekle</button>`,
+    `<div class="form-group"><label class="form-label">Ürün Adı</label><input class="form-control" id="ue-ad" type="text" placeholder="Ürün adı"></div>
+     <div class="form-group"><label class="form-label">Birim</label><input class="form-control" id="ue-birim" type="text" placeholder="kg, paket, kasa, adet..."></div>
+     <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer">
+       <input type="checkbox" id="ue-sabit" style="width:18px;height:18px;accent-color:var(--primary)" onchange="document.getElementById('ue-fiyat-wrap').style.display=this.checked?'block':'none'">
+       <span style="font-size:14px;font-weight:700">Sabit fiyatlı</span>
+     </label>
+     <div id="ue-fiyat-wrap" style="display:none">
+       <div class="form-group" style="margin-bottom:0"><label class="form-label">Birim Fiyat (₺)</label><input class="form-control" id="ue-fiyat" type="number" min="0" step="any" placeholder="0.00"></div>
+     </div>`
+  );
+};
+
+window.confirmUrunEkle=async(firmaId)=>{
+  const ad=document.getElementById('ue-ad')?.value.trim();
+  const birim=document.getElementById('ue-birim')?.value.trim();
+  const sabit=document.getElementById('ue-sabit')?.checked;
+  const fiyat=parseFloat(document.getElementById('ue-fiyat')?.value)||0;
+  if(!ad||!birim){showToast('Ad ve birim zorunlu.');return;}
+  if(sabit&&!fiyat){showToast('Sabit fiyat giriniz.');return;}
+  closeModal();
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  if(!firma) return;
+  if(!firma.urunler) firma.urunler=[];
+  firma.urunler.push({id:uuid(),ad,birim,sabit_fiyat:!!sabit,fiyat:sabit?fiyat:0});
+  await setDoc(doc(db,'config','stok_firmalar'),{liste:state.stokFirmalar});
   showToast('Ürün eklendi ✓');
-  renderStok();
+  renderStokYonetim();
+};
+
+window.showUrunSilModal=(firmaId,urunId)=>{
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  const urun=firma?.urunler?.find(u=>u.id===urunId);
+  showModal('Ürün Sil',`"${urun?.ad}" silinsin mi?`,
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-danger" onclick="confirmUrunSil('${firmaId}','${urunId}')">Sil</button>`
+  );
+};
+
+window.confirmUrunSil=async(firmaId,urunId)=>{
+  closeModal();
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  if(!firma) return;
+  firma.urunler=(firma.urunler||[]).filter(u=>u.id!==urunId);
+  await setDoc(doc(db,'config','stok_firmalar'),{liste:state.stokFirmalar});
+  showToast('Ürün silindi ✓');
+  renderStokYonetim();
+};
+
+window.showUrunGuncelleModal=(firmaId,urunId)=>{
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  const urun=firma?.urunler?.find(u=>u.id===urunId);
+  if(!urun) return;
+  showModal('Ürün Güncelle','',
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button><button class="btn btn-primary" onclick="confirmUrunGuncelle('${firmaId}','${urunId}')">Kaydet</button>`,
+    `<div class="form-group"><label class="form-label">Ürün Adı</label><input class="form-control" id="ug-ad" type="text" value="${urun.ad}"></div>
+     <div class="form-group"><label class="form-label">Birim</label><input class="form-control" id="ug-birim" type="text" value="${urun.birim}"></div>
+     <label style="display:flex;align-items:center;gap:8px;margin-bottom:14px;cursor:pointer">
+       <input type="checkbox" id="ug-sabit" style="width:18px;height:18px;accent-color:var(--primary)" ${urun.sabit_fiyat?'checked':''} onchange="document.getElementById('ug-fiyat-wrap').style.display=this.checked?'block':'none'">
+       <span style="font-size:14px;font-weight:700">Sabit fiyatlı</span>
+     </label>
+     <div id="ug-fiyat-wrap" style="display:${urun.sabit_fiyat?'block':'none'}">
+       <div class="form-group" style="margin-bottom:0"><label class="form-label">Birim Fiyat (₺)</label><input class="form-control" id="ug-fiyat" type="number" min="0" step="any" value="${urun.fiyat||''}"></div>
+     </div>`
+  );
+};
+
+window.confirmUrunGuncelle=async(firmaId,urunId)=>{
+  const ad=document.getElementById('ug-ad')?.value.trim();
+  const birim=document.getElementById('ug-birim')?.value.trim();
+  const sabit=document.getElementById('ug-sabit')?.checked;
+  const fiyat=parseFloat(document.getElementById('ug-fiyat')?.value)||0;
+  if(!ad||!birim){showToast('Ad ve birim zorunlu.');return;}
+  if(sabit&&!fiyat){showToast('Sabit fiyat giriniz.');return;}
+  closeModal();
+  const firma=state.stokFirmalar.find(f=>f.id===firmaId);
+  const urun=firma?.urunler?.find(u=>u.id===urunId);
+  if(!urun) return;
+  Object.assign(urun,{ad,birim,sabit_fiyat:!!sabit,fiyat:sabit?fiyat:0});
+  await setDoc(doc(db,'config','stok_firmalar'),{liste:state.stokFirmalar});
+  showToast('Ürün güncellendi ✓');
+  renderStokYonetim();
+};
+
+// Rapor
+function populateRaporFiltreler(){
+  const firmaSel=document.getElementById('sr-firma');
+  const urunSel=document.getElementById('sr-urun');
+  if(!firmaSel||!urunSel) return;
+  firmaSel.innerHTML='<option value="">— Tüm Firmalar —</option>'+state.stokFirmalar.map(f=>`<option value="${f.id}">${f.ad}</option>`).join('');
+  const tumUrunler=[];
+  state.stokFirmalar.forEach(f=>(f.urunler||[]).forEach(u=>{if(!tumUrunler.find(x=>x.ad===u.ad)) tumUrunler.push(u);}));
+  urunSel.innerHTML='<option value="">— Tüm Ürünler —</option>'+tumUrunler.map(u=>`<option value="${u.ad}">${u.ad}</option>`).join('');
+}
+
+window.loadStokRapor=async()=>{
+  const start=document.getElementById('sr-start').value;
+  const end=document.getElementById('sr-end').value;
+  const firmaId=document.getElementById('sr-firma').value;
+  const urunAd=document.getElementById('sr-urun').value;
+  if(!start||!end){showToast('Tarih aralığı seçiniz.');return;}
+  const el=document.getElementById('sr-sonuc');
+  el.innerHTML='<div class="loader"><div class="spinner"></div></div>';
+  try{
+    const startTs=Timestamp.fromDate(new Date(start+'T00:00:00'));
+    const endTs=Timestamp.fromDate(new Date(end+'T23:59:59'));
+    const snap=await getDocs(query(collection(db,'stok_girisler'),where('zaman','>=',startTs),where('zaman','<=',endTs),orderBy('zaman','asc')));
+    let sonuclar=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(firmaId) sonuclar=sonuclar.filter(s=>s.firma_id===firmaId);
+    if(urunAd) sonuclar=sonuclar.filter(s=>s.urun_ad===urunAd);
+    _srSonuclar=sonuclar;
+    if(!sonuclar.length){el.innerHTML='<div class="alert alert-warning">Sonuç bulunamadı.</div>';return;}
+    let html='<div class="card" style="margin-bottom:12px"><div class="card-body" style="padding:0 16px">';
+    sonuclar.forEach(s=>{
+      html+=`<div class="stok-islem-row">
+        <div class="stok-islem-info">
+          <div style="font-weight:800;font-size:14px">${s.urun_ad}</div>
+          <div style="font-size:12px;color:var(--text2)">${s.firma_ad} · ${s.miktar} ${s.birim} · ${fmtDate(s.zaman)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:900;font-size:13px;font-family:'Roboto Mono',monospace">${fmt(s.toplam_tutar)}</div>
+          <div style="font-size:11px;color:var(--text3)">${fmt(s.birim_fiyat)}/${s.birim}</div>
+        </div>
+      </div>`;
+    });
+    html+='</div></div>';
+    const ozetMap={};
+    sonuclar.forEach(s=>{
+      const key=s.urun_ad+'|'+s.birim;
+      if(!ozetMap[key]) ozetMap[key]={urun_ad:s.urun_ad,birim:s.birim,miktar:0,tutar:0};
+      ozetMap[key].miktar+=s.miktar||0;
+      ozetMap[key].tutar+=s.toplam_tutar||0;
+    });
+    const ozetler=Object.values(ozetMap);
+    const genelToplam=ozetler.reduce((a,b)=>a+b.tutar,0);
+    html+=`<div class="section-title">Özet</div>
+      <div class="card"><div class="card-body" style="padding:0 16px">
+        ${ozetler.map(o=>`<div class="ozet-row">
+          <div class="label">${o.urun_ad}</div>
+          <div style="text-align:right">
+            <div style="font-weight:800;font-size:13px">${o.miktar} ${o.birim}</div>
+            <div class="val">${fmt(o.tutar)}</div>
+          </div>
+        </div>`).join('')}
+        <div class="ozet-row" style="border-top:2px solid var(--border)">
+          <div style="font-weight:900">Genel Toplam</div>
+          <div class="val" style="font-size:16px">${fmt(genelToplam)}</div>
+        </div>
+      </div></div>`;
+    el.innerHTML=html;
+  }catch(e){el.innerHTML=`<div class="alert alert-danger">Hata: ${e.message}</div>`;}
+};
+
+window.stokRaporExcel=()=>{
+  if(!_srSonuclar.length){showToast('Önce sorgulayınız.');return;}
+  const rows=[['Firma','Ürün','Birim','Miktar','Birim Fiyat','Toplam Tutar','Tarih','Kullanıcı']];
+  _srSonuclar.forEach(s=>rows.push([s.firma_ad,s.urun_ad,s.birim,s.miktar,s.birim_fiyat?.toFixed(4)||'',s.toplam_tutar?.toFixed(2)||'',fmtDate(s.zaman),s.kullanici||'']));
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='stok-rapor.csv';a.click();
+  URL.revokeObjectURL(url);
 };
 
 // ── RAPOR (Madde 4) ──
@@ -2808,13 +3138,13 @@ window.goPage=page=>{
       renderIslemlerPage();
     }
   }
-  if(page==='stok') renderStok();
+  if(page==='stok'){ stokTab('firmalar',document.querySelector('#stok-seg .seg-btn')); renderStokFirmalar(); }
   if(page==='odemeler') loadOdemeler();
 };
 
 function initDateInputs(){
   const t=today();
-  ['rapor-start','rapor-end','islem-csv-start','islem-csv-end','stok-csv-start','stok-csv-end'].forEach(id=>{
+  ['rapor-start','rapor-end','islem-csv-start','islem-csv-end','sr-start','sr-end'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value=t;
   });
 }
