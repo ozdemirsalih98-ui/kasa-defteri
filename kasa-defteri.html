@@ -1349,9 +1349,8 @@ window.confirmSil=async(sharedId)=>{
     const q=query(collection(db,'islemler'),where('sharedId','==',sharedId));
     const snap=await getDocs(q);
     
-    // OP/SP referansı var mı kontrol et
-    const islemDoc = snap.docs[0]?.data();
-    const aciklama = islemDoc?.aciklama || '';
+    // OP/SP referansı var mı kontrol et — tüm dokümanları tara (YK gider 2 doc yaratır)
+    const aciklama = snap.docs.map(d=>d.data().aciklama||'').find(a=>a.includes('[OP:')||a.includes('[SP:'))||'';
     const match = aciklama.match(/\[OP:([^\]]+)\]/);
     const spMatch = aciklama.match(/\[SP:([^\]]+)\]/);
     
