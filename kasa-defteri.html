@@ -1931,7 +1931,6 @@ window.showStokOdemeModal=()=>{
          <button type="button" onclick="document.getElementById('so-tutar').value=${bakiye.toFixed(2)}" style="font-size:11px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer;font-weight:700">Tüm bakiye</button>
        </div>
      </div>
-     <div class="form-group"><label class="form-label">Açıklama (opsiyonel)</label><input class="form-control" id="so-aciklama" type="text" placeholder=""></div>
      <div class="form-label" style="margin-bottom:8px">Kasa Seç</div>
      ${kasaOptHTML}`
   );
@@ -1941,7 +1940,7 @@ window.confirmStokOdeme=async(kasa)=>{
   const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
   if(!firma) return;
   const tutar=parseFloat(document.getElementById('so-tutar')?.value);
-  const aciklama=document.getElementById('so-aciklama')?.value.trim()||'';
+  const aciklama='';
   if(!tutar||tutar<=0){showToast('Geçerli bir tutar giriniz.');return;}
   const girisler=state.stokGirisler.filter(g=>g.firma_id===firma.id);
   const mevcutOdemeler=state.stokOdemeler.filter(o=>o.firma_id===firma.id);
@@ -3027,56 +3026,32 @@ window.odemeYapKasaSec = async (id, kasa) => {
   const varsayilanTutar = o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0);
   const tutarDegisti = Math.abs(tutarInput - varsayilanTutar) > 0.001;
 
-  try {
-    // oncekiTutar yedekleme + odendi işaretleme
-    const guncelleme = {
-      odendi: true,
-      odendiTarih: serverTimestamp(),
-      odendiKullanici: state.kullanici,
-      oncekiTutarTahmini: o.tutarTahmini ?? null,
-      oncekiTutarKesin: o.tutarKesin ?? null,
-    };
+  // Henüz Firebase'e yazma — kasa işlemi kaydedilince kontolOdemeRef halleder
+  window._pendingOdemeYap = { id, o, tutarInput, tutarDegisti };
 
-    if(tutarDegisti){
-      // Kullanıcı tutarı değiştirdi → tutarKesin'e yaz, tutarTahmini sil
-      guncelleme.tutarKesin = tutarInput;
-      guncelleme.tutarTahmini = null;
-    }
+  // Kasa işlem girişine yönlendir
+  kasaIslemAc(kasa);
+  setTur('gider');
 
-    await setDoc(doc(db,'odemeler',id), guncelleme, {merge:true});
+  // Gelir ve transfer butonlarını pasif yap
+  document.getElementById('seg-gelir').disabled=true;
+  document.getElementById('seg-gelir').style.opacity='0.35';
+  document.getElementById('seg-gelir').style.pointerEvents='none';
+  document.getElementById('seg-transfer').disabled=true;
+  document.getElementById('seg-transfer').style.opacity='0.35';
+  document.getElementById('seg-transfer').style.pointerEvents='none';
 
-    // Tekrarlayan ise bir sonraki vadeyi oluştur (orijinal plan bilgileriyle)
-    if(o.tekrar !== 'tek'){
-      const sonraki = sonrakiVadeHesapla(o);
-      await addDoc(collection(db,'odemeler'), {
-        ad: o.ad, aciklama: o.aciklama, tekrar: o.tekrar,
-        vadeTarihi: sonraki, kategori: o.kategori||'', notlar: o.notlar||'',
-        tutarTahmini: o.tutarTahmini,   // orijinal plan bilgisi
-        tutarKesin: o.tutarKesin ?? null,
-        ayinKaci: o.ayinKaci||null, haftaGunu: o.haftaGunu||null,
-        odendi: false, odendiTarih: null,
-        olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
-      });
-    }
+  const katSel = document.getElementById('islem-kategori');
+  if(katSel && o.kategori){
+    const opt = Array.from(katSel.options).find(op => op.value === o.kategori);
+    if(opt) katSel.value = o.kategori;
+  }
+  const aciklamaEl = document.getElementById('islem-aciklama');
+  if(aciklamaEl) aciklamaEl.value = (o.aciklama||o.ad) + ' [OP:' + id + ']';
+  const tutarEl = document.getElementById('islem-tutar');
+  if(tutarEl) tutarEl.value = tutarInput;
 
-    await loadOdemeler();
-
-    // İşlem giriş sayfasına yönlendir (kategori + açıklama + tutar otomatik)
-    kasaIslemAc(kasa);
-    setTur('gider');
-
-    const katSel = document.getElementById('islem-kategori');
-    if(katSel && o.kategori){
-      const opt = Array.from(katSel.options).find(op => op.value === o.kategori);
-      if(opt) katSel.value = o.kategori;
-    }
-    const aciklamaEl = document.getElementById('islem-aciklama');
-    if(aciklamaEl) aciklamaEl.value = (o.aciklama||o.ad) + ' [OP:' + id + ']';
-    const tutarEl = document.getElementById('islem-tutar');
-    if(tutarEl) tutarEl.value = tutarInput;
-
-    showToast('Kasa seçildi, işlem bilgileri yüklendi ✓');
-  } catch(e){ showToast('Hata: '+e.message); }
+  showToast('Kasa işlemini kaydedin ✓');
 };
 
 // ── Ertele ──
@@ -3228,22 +3203,32 @@ async function kontolOdemeRef(aciklama){
   const o = state.odemeler.find(x=>x.id===opId);
   if(!o || o.odendi) return;
   try {
-    await setDoc(doc(db,'odemeler',opId), {
+    const pending = window._pendingOdemeYap?.id === opId ? window._pendingOdemeYap : null;
+    const tutarInput = pending?.tutarInput ?? (o.tutarKesin != null ? o.tutarKesin : (o.tutarTahmini || 0));
+    const tutarDegisti = pending?.tutarDegisti ?? false;
+
+    const guncelleme = {
       odendi: true,
       odendiTarih: serverTimestamp(),
       odendiKullanici: state.kullanici,
-    }, {merge:true});
+      oncekiTutarTahmini: o.tutarTahmini ?? null,
+      oncekiTutarKesin: o.tutarKesin ?? null,
+    };
+    if(tutarDegisti){ guncelleme.tutarKesin = tutarInput; guncelleme.tutarTahmini = null; }
+
+    await setDoc(doc(db,'odemeler',opId), guncelleme, {merge:true});
     if(o.tekrar !== 'tek'){
       const sonraki = sonrakiVadeHesapla(o);
       await addDoc(collection(db,'odemeler'), {
         ad: o.ad, aciklama: o.aciklama, tekrar: o.tekrar,
         vadeTarihi: sonraki, kategori: o.kategori||'', notlar: o.notlar||'',
-        tutarTahmini: o.tutarTahmini, tutarKesin: o.tutarKesin,
+        tutarTahmini: o.tutarTahmini, tutarKesin: o.tutarKesin ?? null,
         ayinKaci: o.ayinKaci||null, haftaGunu: o.haftaGunu||null,
         odendi: false, odendiTarih: null,
         olusturanKullanici: state.kullanici, zaman: serverTimestamp(),
       });
     }
+    window._pendingOdemeYap = null;
     showToast('Ödeme planı ödendi ✓');
     await loadOdemeler();
   } catch(e){ console.warn('OP ref hata',e); }
@@ -3252,8 +3237,9 @@ async function kontolOdemeRef(aciklama){
 // ── NAV ──
 window.goPage=page=>{
   // İşlem sayfasından çıkılınca bekleyen stok ödemesini iptal et
-  if(page!=='islem' && window._pendingStokOdeme){
+  if(page!=='islem' && (window._pendingStokOdeme || window._pendingOdemeYap)){
     window._pendingStokOdeme=null;
+    window._pendingOdemeYap=null;
     ['seg-gelir','seg-transfer'].forEach(id=>{
       const btn=document.getElementById(id);
       if(btn){btn.disabled=false;btn.style.opacity='';btn.style.pointerEvents='';}
