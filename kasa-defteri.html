@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v11</title>
+<title>Kasa Defteri v1</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -360,7 +360,7 @@
     <!-- ANASAYFA -->
     <div class="page active" id="page-ana">
       <div id="kasa-grid">
-        <div class="kasa-card yk kasa-card-wide" onclick="kasaIslemAc('YK')"><div class="kasa-name">Yazar Kasa</div><div class="kasa-label">YK</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div></div>
+        <div class="kasa-card yk kasa-card-wide" onclick="kasaIslemAc('YK')"><div class="kasa-name">Yazar Kasa</div><div class="kasa-label">YK</div><div class="kasa-balance pos" id="bal-yk">₺0,00</div><div id="yk-bozuk-not" style="font-size:11px;color:var(--text-muted);margin-top:2px"></div></div>
         <div class="kasa-card c" onclick="kasaIslemAc('C')"><div class="kasa-name">Cep</div><div class="kasa-label">C</div><div class="kasa-balance pos" id="bal-c">₺0,00</div></div>
         <div class="kasa-card p" onclick="kasaIslemAc('P')"><div class="kasa-name">POS</div><div class="kasa-label">P</div><div class="kasa-balance pos" id="bal-p">₺0,00</div></div>
         <div class="kasa-card b" onclick="kasaIslemAc('B')"><div class="kasa-name">Banka</div><div class="kasa-label">B</div><div class="kasa-balance pos" id="bal-b">₺0,00</div></div>
@@ -960,24 +960,16 @@ window.doGS=async()=>{
     const gsRef=doc(collection(db,'gunluk'));
     const gsId=gsRef.id;
 
-    // ADIM 2: YK→C transferi ve varsa bozuk para C→YK transferi — aynı batch, aynı gs_id
-    const batch1=writeBatch(db);
-    let batchHasOps=false;
-    if(ykBal>0){
+    // ADIM 2: YK→C transferi — bozuk para düşülmüş tutar, fiziksel hareketi yansıtır
+    const transferTutar=Math.max(0, ykBal-bozukPara);
+    if(transferTutar>0){
+      const batch1=writeBatch(db);
       const sharedId=uuid();
       const r1=doc(collection(db,'islemler')); const r2=doc(collection(db,'islemler'));
-      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
-      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
-      batchHasOps=true;
+      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:transferTutar,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:transferTutar,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      await batch1.commit();
     }
-    if(bozukPara>0){
-      const sharedId=uuid();
-      const r3=doc(collection(db,'islemler')); const r4=doc(collection(db,'islemler'));
-      batch1.set(r3,{sharedId,tur:'transfer',kasadan:'C',kasaya:'YK',tutar:bozukPara,aciklama:'günsonu bozuk para',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih,bozuk_para:true});
-      batch1.set(r4,{sharedId,tur:'transfer_alici',kasadan:'C',kasaya:'YK',tutar:bozukPara,aciklama:'günsonu bozuk para',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih,bozuk_para:true});
-      batchHasOps=true;
-    }
-    if(batchHasOps) await batch1.commit();
     await loadAllIslemler(); await loadIslemler();
 
     // ADIM 3: Özeti hesapla (transferler hariç, ciro doğru)
@@ -1017,7 +1009,7 @@ function hesaplaGunOzeti(){
   for(const i of is){
     if(i.tur==='gelir'&&i.kasa==='YK') ciro+=i.tutar;
     if(i.tur==='yk_gider_gelir'&&i.kasa==='YK') ciro+=i.tutar;
-    // günsonu transferleri ciro'ya dahil edilmez (gs_transfer flag veya aciklama=günsonu)
+    // günsonu transferleri ciro'ya dahil edilmez
     const isGsTransfer=(i.gs_transfer===true||i.aciklama==='günsonu');
     if(i.tur==='transfer'&&i.kasadan==='YK'&&!isGsTransfer) ciro+=i.tutar;
     if(i.tur==='transfer_alici'&&i.kasaya==='YK'&&!isGsTransfer) ciro-=i.tutar;
@@ -1028,6 +1020,10 @@ function hesaplaGunOzeti(){
     if(i.tur==='gider'&&i.kasa==='B') bankGider+=i.tutar;
     if(i.tur==='gider'&&i.kasa==='KK') kkGider+=i.tutar;
   }
+  // Önceki günün bozuk parasını ciro'dan düş (kasa sayımına dahil ama ciro değil)
+  const gbSn=state.aktifGB?.zaman?.seconds||0;
+  const prevGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)<gbSn);
+  if(prevGS?.bozuk_para) ciro-=prevGS.bozuk_para;
   const nkGelir=is.filter(i=>(i.tur==='gelir'||i.tur==='yk_gider_gelir')&&(i.kasa==='YK'||i.kasa==='C')).reduce((a,b)=>a+b.tutar,0);
   const nkGider=is.filter(i=>i.tur==='gider'&&(i.kasa==='YK'||i.kasa==='C')).reduce((a,b)=>a+b.tutar,0);
   return{ciro,ykGider,cepGider,toplamGider:ykGider+cepGider,posCiro,sonuc:nkGelir-nkGider,bankGelir,bankGider,kkGider};
@@ -1043,6 +1039,13 @@ function renderBalances(){
     el.textContent=fmt(v);
     el.className='kasa-balance '+(v<0?'neg':'pos');
   });
+  // YK kart üzerinde bozuk para notu
+  const notEl=document.getElementById('yk-bozuk-not');
+  if(notEl){
+    const gbSn=state.aktifGB?.zaman?.seconds||0;
+    const prevGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)<gbSn);
+    notEl.textContent=prevGS?.bozuk_para?`Bozuk Para: ${fmt(prevGS.bozuk_para)}`:'';
+  }
 }
 
 function renderOzet(){
