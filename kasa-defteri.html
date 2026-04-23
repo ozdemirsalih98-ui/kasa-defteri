@@ -1637,6 +1637,7 @@ window.kasaRaporListele=async()=>{
       if(altSec) rows=rows.filter(i=>i.kasaya===altSec);
     }
     if(!rows.length){sonucEl.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Sonuç bulunamadı</div>';return;}
+    window._raporRows=rows;
     let topGelir=0,topGider=0;
     rows.forEach(i=>{
       if(i.tur==='gelir'&&i.kasa===kasa) topGelir+=i.tutar;
@@ -1644,13 +1645,40 @@ window.kasaRaporListele=async()=>{
       if(i.tur==='transfer'&&i.kasadan===kasa) topGider+=i.tutar;
       if(i.tur==='transfer_alici'&&i.kasaya===kasa) topGelir+=i.tutar;
     });
-    const ozet=`<div class="card" style="margin-bottom:8px"><div class="card-body" style="display:flex;gap:10px;align-items:center;padding:10px 16px">
+    const ozet=`<div class="card" style="margin-bottom:8px"><div class="card-body" style="display:flex;gap:8px;align-items:center;padding:10px 16px">
       <span style="flex:1;font-size:12px;font-weight:800;color:var(--green)">↑ Giren: ${fmt(topGelir)}</span>
       <span style="flex:1;font-size:12px;font-weight:800;color:var(--red)">↓ Çıkan: ${fmt(topGider)}</span>
       <span style="font-size:11px;color:var(--text-muted)">${rows.length} işlem</span>
+      <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;flex-shrink:0" onclick="kasaRaporExcel()">Excel'e Aktar</button>
     </div></div>`;
     sonucEl.innerHTML=ozet+'<div class="card"><div class="card-body" style="padding:0 16px">'+rows.map(i=>islemItemHTML(i)).join('')+'</div></div>';
   }catch(e){sonucEl.innerHTML='<div class="empty-state">Hata: '+e.message+'</div>';}
+};
+
+window.kasaRaporExcel=()=>{
+  const rows=window._raporRows||[];
+  if(!rows.length){showToast('Dışa aktarılacak veri yok');return;}
+  const bas=document.getElementById('rapor-bas').value||'';
+  const bit=document.getElementById('rapor-bit').value||'';
+  const headers=['Tarih','Tür','Gönderen','Alıcı','Kategori','Açıklama','Tutar'];
+  const csvRows=rows.map(i=>{
+    const tarih=i.zaman?.toDate?i.zaman.toDate().toLocaleDateString('tr-TR'):(i.zaman?.seconds?new Date(i.zaman.seconds*1000).toLocaleDateString('tr-TR'):'');
+    const tur=i.tur==='transfer'||i.tur==='transfer_alici'?'Transfer':i.tur==='gelir'?'Gelir':'Gider';
+    const gonderen=i.kasadan||i.kasa||'';
+    const alici=i.kasaya||'';
+    const kategori=i.kategori||'';
+    const aciklama=(i.aciklama||'').replace(/"/g,'""');
+    const tutar=i.tutar?.toString().replace('.',',')||'0';
+    return `"${tarih}","${tur}","${gonderen}","${alici}","${kategori}","${aciklama}","${tutar}"`;
+  });
+  const csv='﻿'+headers.join(';')+'\n'+csvRows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`kasa-rapor-${aktifKasa}-${bas}-${bit}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 window.kasaIslemAc = (kasa) => {
