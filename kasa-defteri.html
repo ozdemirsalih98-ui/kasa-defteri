@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v24</title>
+<title>Kasa Defteri v1</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kasa Defteri">
 <style>
@@ -1685,7 +1686,7 @@ window.hizliKategoriEkle=async(tur)=>{
 let _aktifFirmaId=null;
 let _srSonuclar=[];
 
-function stokTab(tab,btn){
+window.stokTab=function stokTab(tab,btn){
   document.querySelectorAll('#stok-seg .seg-btn').forEach(b=>b.classList.toggle('active',b===btn));
   document.getElementById('stok-tab-firmalar').style.display=tab==='firmalar'?'block':'none';
   document.getElementById('stok-firma-detay').style.display='none';
@@ -1716,7 +1717,7 @@ function renderStokFirmalar(){
   }).join('');
 }
 
-function stokFirmaTikla(firmaId){
+window.stokFirmaTikla=function stokFirmaTikla(firmaId){
   _aktifFirmaId=firmaId;
   const firma=state.stokFirmalar.find(f=>f.id===firmaId);
   if(!firma) return;
@@ -1727,7 +1728,7 @@ function stokFirmaTikla(firmaId){
   renderStokDetay(firma);
 }
 
-function stokFirmaGeri(){
+window.stokFirmaGeri=function stokFirmaGeri(){
   _aktifFirmaId=null;
   document.getElementById('stok-firma-detay').style.display='none';
   document.getElementById('stok-tab-firmalar').style.display='block';
