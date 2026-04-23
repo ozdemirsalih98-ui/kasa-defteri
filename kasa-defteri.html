@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v1</title>
+<title>Kasa Defteri v11</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -682,6 +682,7 @@ let state = {
   stokUrunler: [],
   stokFirmalar: [],
   stokGirisler: [],
+  stokOdemeler: [],
   baslangic: {},
   islemler: [],      // aktif gün (özet/anasayfa)
   allIslemler: [],   // tüm zamanlar (bakiye + işlemler sayfası)
@@ -902,8 +903,12 @@ async function loadAllIslemler(){
 }
 
 async function loadStok(){
-  const snap=await getDocs(query(collection(db,'stok_girisler'),orderBy('zaman','desc')));
-  state.stokGirisler=snap.docs.map(d=>({id:d.id,...d.data()}));
+  const [gSnap,oSnap]=await Promise.all([
+    getDocs(query(collection(db,'stok_girisler'),orderBy('zaman','desc'))),
+    getDocs(query(collection(db,'stok_odemeler'),orderBy('zaman','desc'))),
+  ]);
+  state.stokGirisler=gSnap.docs.map(d=>({id:d.id,...d.data()}));
+  state.stokOdemeler=oSnap.docs.map(d=>({id:d.id,...d.data()}));
   renderStokFirmalar();
 }
 
@@ -1344,10 +1349,11 @@ window.confirmSil=async(sharedId)=>{
     const q=query(collection(db,'islemler'),where('sharedId','==',sharedId));
     const snap=await getDocs(q);
     
-    // OP:id referansı var mı kontrol et
+    // OP/SP referansı var mı kontrol et
     const islemDoc = snap.docs[0]?.data();
     const aciklama = islemDoc?.aciklama || '';
     const match = aciklama.match(/\[OP:([^\]]+)\]/);
+    const spMatch = aciklama.match(/\[SP:([^\]]+)\]/);
     
     const batch=writeBatch(db);
     snap.docs.forEach(d=>batch.delete(d.ref));
@@ -1393,6 +1399,16 @@ window.confirmSil=async(sharedId)=>{
       showToast('Ödeme planı geri alındı ✓');
     }
 
+    // SP:id → stok ödemesini sil, bakiyeyi güncelle
+    if(spMatch){
+      const spId=spMatch[1];
+      await deleteDoc(doc(db,'stok_odemeler',spId)).catch(()=>null);
+      state.stokOdemeler=state.stokOdemeler.filter(o=>o.id!==spId);
+      renderStokFirmalar();
+      const aktifFirma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+      if(aktifFirma) renderStokDetay(aktifFirma);
+      showToast('Stok ödemesi geri alındı ✓');
+    }
     showToast('İşlem silindi');
     await loadAllIslemler(); await loadIslemler();
     renderBalances(); renderOzet(); renderSonIslemler(); renderIslemlerPage();
@@ -1706,13 +1722,14 @@ function renderStokFirmalar(){
   }
   el.innerHTML=state.stokFirmalar.map(f=>{
     const girisler=state.stokGirisler.filter(g=>g.firma_id===f.id);
-    const toplam=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0);
+    const odemeler=state.stokOdemeler.filter(o=>o.firma_id===f.id);
+    const bakiye=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0)-odemeler.reduce((a,b)=>a+(b.tutar||0),0);
     return `<div class="firma-card" onclick="stokFirmaTikla('${f.id}')">
       <div class="firma-card-info">
         <div class="firma-card-ad">${f.ad}</div>
         <div class="firma-card-meta">${f.urunler?.length||0} ürün · ${girisler.length} giriş</div>
       </div>
-      <div class="firma-card-bakiye">${fmt(toplam)}</div>
+      <div class="firma-card-bakiye">${fmt(bakiye)}</div>
     </div>`;
   }).join('');
 }
@@ -1737,29 +1754,55 @@ window.stokFirmaGeri=function stokFirmaGeri(){
 
 function renderStokDetay(firma){
   const girisler=state.stokGirisler.filter(g=>g.firma_id===firma.id).sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0));
-  const toplam=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0);
+  const odemeler=state.stokOdemeler.filter(o=>o.firma_id===firma.id).sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0));
+  const toplamGiris=girisler.reduce((a,b)=>a+(b.toplam_tutar||0),0);
+  const toplamOdeme=odemeler.reduce((a,b)=>a+(b.tutar||0),0);
+  const bakiye=toplamGiris-toplamOdeme;
   document.getElementById('stok-detay-bakiye').innerHTML=`
-    <div class="card"><div class="card-body" style="padding:14px 16px">
-      <div style="font-size:12px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Toplam Alım</div>
-      <div style="font-size:24px;font-weight:900;font-family:'Roboto Mono',monospace;color:var(--primary)">${fmt(toplam)}</div>
+    <div class="card"><div class="card-body" style="padding:14px 16px;display:flex;gap:16px">
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Bakiye</div>
+        <div style="font-size:22px;font-weight:900;font-family:'Roboto Mono',monospace;color:var(--primary)">${fmt(bakiye)}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.5px">Toplam Alım</div>
+        <div style="font-size:15px;font-weight:900;font-family:'Roboto Mono',monospace">${fmt(toplamGiris)}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-size:11px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:.5px">Ödenen</div>
+        <div style="font-size:15px;font-weight:900;font-family:'Roboto Mono',monospace;color:var(--green)">${fmt(toplamOdeme)}</div>
+      </div>
     </div></div>`;
   const el=document.getElementById('stok-detay-islemler');
-  if(!girisler.length){ el.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Henüz giriş yok</div>'; return; }
-  el.innerHTML=`<div class="section-title">Son İşlemler</div>
+  // Tüm işlemleri (girişler + ödemeler) zamana göre birleştir
+  const tumIslemler=[
+    ...girisler.map(g=>({...g,tur:'giris'})),
+    ...odemeler.map(o=>({...o,tur:'odeme'}))
+  ].sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0));
+  if(!tumIslemler.length){ el.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Henüz işlem yok</div>'; return; }
+  el.innerHTML=`<div class="section-title">İşlemler</div>
     <div class="card"><div class="card-body" style="padding:0 16px">
-      ${girisler.slice(0,30).map(g=>`
+      ${tumIslemler.slice(0,40).map(i=>i.tur==='giris'?`
         <div class="stok-islem-row">
           <div class="stok-islem-info">
-            <div style="font-weight:800;font-size:14px">${g.urun_ad}</div>
-            <div style="font-size:12px;color:var(--text2)">${g.miktar} ${g.birim} · ${fmtDate(g.zaman)} · ${g.kullanici||''}</div>
+            <div style="font-weight:800;font-size:14px">${i.urun_ad}</div>
+            <div style="font-size:12px;color:var(--text2)">${i.miktar} ${i.birim} · ${fmtDate(i.zaman)} · ${i.kullanici||''}</div>
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <div style="text-align:right">
-              <div style="font-weight:900;font-size:14px;font-family:'Roboto Mono',monospace">${fmt(g.toplam_tutar)}</div>
-              <div style="font-size:11px;color:var(--text3)">${fmt(g.birim_fiyat)}/${g.birim}</div>
+              <div style="font-weight:900;font-size:14px;font-family:'Roboto Mono',monospace;color:var(--red)">${fmt(i.toplam_tutar)}</div>
+              <div style="font-size:11px;color:var(--text3)">${fmt(i.birim_fiyat)}/${i.birim}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" style="padding:6px 8px;font-size:12px" onclick="stokGirisSil('${g.id}',event)">✕</button>
+            <button class="btn btn-ghost btn-sm" style="padding:6px 8px;font-size:12px" onclick="stokGirisSil('${i.id}',event)">✕</button>
           </div>
+        </div>`:`
+        <div class="stok-islem-row">
+          <div class="stok-islem-info">
+            <div style="font-weight:800;font-size:14px;color:var(--green)">Ödeme</div>
+            <div style="font-size:12px;color:var(--text2)">${i.aciklama||''} · ${fmtDate(i.zaman)} · ${i.kullanici||''}</div>
+            <div style="font-size:11px;color:var(--text3)">Silmek için işlemler sayfasını kullanın</div>
+          </div>
+          <div style="font-weight:900;font-size:14px;font-family:'Roboto Mono',monospace;color:var(--green)">−${fmt(i.tutar)}</div>
         </div>`).join('')}
     </div></div>`;
 }
@@ -1863,7 +1906,48 @@ window.confirmStokGiris=async()=>{
 };
 
 window.showStokOdemeModal=()=>{
-  showModal('Ödeme Yap','Ödeme özelliği yakında eklenecek.','<button class="btn btn-ghost" onclick="closeModal()">Tamam</button>');
+  const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+  if(!firma) return;
+  const kasaOptHTML=state.kasalar.filter(k=>k!=='P').map(k=>
+    `<div onclick="confirmStokOdeme('${k}')" style="padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:8px;cursor:pointer;background:var(--surface);display:flex;justify-content:space-between;align-items:center" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='var(--surface)'">
+      <div style="font-weight:800;font-size:15px">${k}</div>
+    </div>`
+  ).join('');
+  showModal('Ödeme Yap',`<b>${firma.ad}</b> firmasına ödeme`,
+    `<button class="btn btn-ghost" onclick="closeModal()">İptal</button>`,
+    `<div class="form-group"><label class="form-label">Tutar (₺)</label><input class="form-control" id="so-tutar" type="number" min="0" step="any" placeholder="0.00"></div>
+     <div class="form-group"><label class="form-label">Açıklama (opsiyonel)</label><input class="form-control" id="so-aciklama" type="text" placeholder=""></div>
+     <div class="form-label" style="margin-bottom:8px">Kasa Seç</div>
+     ${kasaOptHTML}`
+  );
+};
+
+window.confirmStokOdeme=async(kasa)=>{
+  const firma=state.stokFirmalar.find(f=>f.id===_aktifFirmaId);
+  if(!firma) return;
+  const tutar=parseFloat(document.getElementById('so-tutar')?.value);
+  const aciklama=document.getElementById('so-aciklama')?.value.trim()||'';
+  if(!tutar||tutar<=0){showToast('Geçerli bir tutar giriniz.');return;}
+  closeModal();
+  try{
+    const ref=await addDoc(collection(db,'stok_odemeler'),{
+      firma_id:firma.id,firma_ad:firma.ad,
+      tutar,aciklama,kasa,
+      kullanici:state.kullanici,zaman:serverTimestamp()
+    });
+    state.stokOdemeler.unshift({id:ref.id,firma_id:firma.id,firma_ad:firma.ad,tutar,aciklama,kasa,kullanici:state.kullanici,zaman:{seconds:Date.now()/1000}});
+    showToast('Ödeme kaydedildi ✓');
+    renderStokDetay(firma);
+    renderStokFirmalar();
+    // Kasa işlem girişine yönlendir
+    kasaIslemAc(kasa);
+    setTur('gider');
+    const aciklamaEl=document.getElementById('islem-aciklama');
+    if(aciklamaEl) aciklamaEl.value=(aciklama||firma.ad+' ödemesi')+' [SP:'+ref.id+']';
+    const tutarEl=document.getElementById('islem-tutar');
+    if(tutarEl) tutarEl.value=tutar;
+    showToast('Kasa işlemi doldurun ve kaydedin ✓');
+  }catch(e){showToast('Hata: '+e.message);}
 };
 
 // Yönetim
