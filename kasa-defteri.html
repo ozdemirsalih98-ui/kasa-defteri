@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Kasa Defteri v1</title>
+<title>Kasa Defteri v12</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
@@ -960,14 +960,16 @@ window.doGS=async()=>{
     const gsRef=doc(collection(db,'gunluk'));
     const gsId=gsRef.id;
 
-    // ADIM 2: YK→C transferi — bozuk para düşülmüş tutar, fiziksel hareketi yansıtır
-    const transferTutar=Math.max(0, ykBal-bozukPara);
-    if(transferTutar>0){
+    // ADIM 2: YK→C transferi (asimetrik)
+    // transfer: ykBal tam → YK bakiyesi 0 olur
+    // transfer_alici: ykBal-bozukPara → Cep sadece fiziksel gelen tutarı alır
+    if(ykBal>0){
       const batch1=writeBatch(db);
       const sharedId=uuid();
+      const cepeTutar=Math.max(0,ykBal-bozukPara);
       const r1=doc(collection(db,'islemler')); const r2=doc(collection(db,'islemler'));
-      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:transferTutar,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
-      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:transferTutar,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batch1.set(r1,{sharedId,tur:'transfer',kasadan:'YK',kasaya:'C',tutar:ykBal,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
+      batch1.set(r2,{sharedId,tur:'transfer_alici',kasadan:'YK',kasaya:'C',tutar:cepeTutar,aciklama:'günsonu',kullanici:state.kullanici,zaman:serverTimestamp(),gs_transfer:true,gs_id:gsId,gb_tarihi:gbTarih});
       await batch1.commit();
     }
     await loadAllIslemler(); await loadIslemler();
@@ -1040,11 +1042,18 @@ function renderBalances(){
     el.className='kasa-balance '+(v<0?'neg':'pos');
   });
   // YK kart üzerinde bozuk para notu
+  // Günsonu yapıldıysa aktifGS'tan, günbaşı yapıldıysa önceki GS'tan oku
   const notEl=document.getElementById('yk-bozuk-not');
   if(notEl){
-    const gbSn=state.aktifGB?.zaman?.seconds||0;
-    const prevGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)<gbSn);
-    notEl.textContent=prevGS?.bozuk_para?`Bozuk Para: ${fmt(prevGS.bozuk_para)}`:'';
+    let bozukNot=0;
+    if(state.aktifGS?.bozuk_para){
+      bozukNot=state.aktifGS.bozuk_para;
+    } else {
+      const gbSn=state.aktifGB?.zaman?.seconds||0;
+      const prevGS=state.gunluk.find(g=>g.tur==='GS'&&(g.zaman?.seconds||0)<gbSn);
+      bozukNot=prevGS?.bozuk_para||0;
+    }
+    notEl.textContent=bozukNot?`Bozuk Para: ${fmt(bozukNot)}`:'';
   }
 }
 
