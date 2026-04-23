@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#EA580C">
 <link rel="apple-touch-icon" href="icon.svg">
 <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');</script>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Kasa Defteri">
@@ -519,6 +520,10 @@
     <!-- İŞLEMLER -->
     <div class="page" id="page-islemler">
       <h2 style="font-size:20px;font-weight:900;margin-bottom:12px">İşlemler</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1"><label class="form-label">Başlangıç</label><input class="form-control" type="date" id="islemler-bas" onchange="renderIslemlerPage()"></div>
+        <div style="flex:1"><label class="form-label">Bitiş</label><input class="form-control" type="date" id="islemler-bit" onchange="renderIslemlerPage()"></div>
+      </div>
       <div id="islemler-liste"><div class="loader"><div class="spinner"></div></div></div>
     </div>
 
@@ -621,7 +626,7 @@
         <div style="padding:0 16px 8px"><button class="btn btn-primary" onclick="loadIslemListesi()">Listele</button></div>
         <div id="islem-listesi-sonuc" style="padding:0 16px 12px"></div>
         <div id="islem-listesi-export-wrap" style="padding:0 16px 16px;display:none">
-          <button class="btn btn-outline" onclick="islemCsvExport()">CSV İndir</button>
+          <button class="btn btn-outline" onclick="islemCsvExport()">Excel İndir</button>
         </div>
       </div>
     </div>
@@ -1257,18 +1262,22 @@ async function renderIslemlerPage(){
   const el=document.getElementById('islemler-liste');
   el.innerHTML='<div class="loader"><div class="spinner"></div></div>';
 
+  const basStr=document.getElementById('islemler-bas')?.value;
+  const bitStr=document.getElementById('islemler-bit')?.value;
+  const basSn=basStr?new Date(basStr+'T00:00:00').getTime()/1000:0;
+  const bitSn=bitStr?new Date(bitStr+'T23:59:59').getTime()/1000:Infinity;
+
   const islemler=state.allIslemler.filter(i=>i.tur!=='yk_gider_gelir').map(i=>({...i,_tip:'islem'}));
   const gunlukKayitlar=state.gunluk.map(g=>({...g,_tip:'gunluk'}));
   const hepsi=[...islemler,...gunlukKayitlar]
+    .filter(i=>{const sn=i.zaman?.seconds||0; return sn>=basSn&&sn<=bitSn;})
     .sort((a,b)=>{
       const diff=(b.zaman?.seconds||0)-(a.zaman?.seconds||0);
       if(diff!==0) return diff;
-      // Aynı saniyeye düşerse gunluk (GS/GB) öne al
       if(a._tip==='gunluk'&&b._tip!=='gunluk') return -1;
       if(b._tip==='gunluk'&&a._tip!=='gunluk') return 1;
       return 0;
-    })
-    .slice(0,50);
+    });
 
   if(!hepsi.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz kayıt yok</div>';return;}
 
@@ -1660,25 +1669,14 @@ window.kasaRaporExcel=()=>{
   if(!rows.length){showToast('Dışa aktarılacak veri yok');return;}
   const bas=document.getElementById('rapor-bas').value||'';
   const bit=document.getElementById('rapor-bit').value||'';
-  const headers=['Tarih','Tür','Gönderen','Alıcı','Kategori','Açıklama','Tutar'];
-  const csvRows=rows.map(i=>{
-    const tarih=i.zaman?.toDate?i.zaman.toDate().toLocaleDateString('tr-TR'):(i.zaman?.seconds?new Date(i.zaman.seconds*1000).toLocaleDateString('tr-TR'):'');
-    const tur=i.tur==='transfer'||i.tur==='transfer_alici'?'Transfer':i.tur==='gelir'?'Gelir':'Gider';
-    const gonderen=i.kasadan||i.kasa||'';
-    const alici=i.kasaya||'';
-    const kategori=i.kategori||'';
-    const aciklama=(i.aciklama||'').replace(/"/g,'""');
-    const tutar=i.tutar?.toString().replace('.',',')||'0';
-    return `"${tarih}","${tur}","${gonderen}","${alici}","${kategori}","${aciklama}","${tutar}"`;
-  });
-  const csv='﻿'+headers.join(';')+'\n'+csvRows.join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`kasa-rapor-${aktifKasa}-${bas}-${bit}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const data=[['Tarih','Tür','Gönderen','Alıcı','Kategori','Açıklama','Tutar'],
+    ...rows.map(i=>{
+      const tarih=i.zaman?.toDate?i.zaman.toDate().toLocaleDateString('tr-TR'):(i.zaman?.seconds?new Date(i.zaman.seconds*1000).toLocaleDateString('tr-TR'):'');
+      const tur=i.tur==='transfer'||i.tur==='transfer_alici'?'Transfer':i.tur==='gelir'?'Gelir':'Gider';
+      return [tarih,tur,i.kasadan||i.kasa||'',i.kasaya||'',i.kategori||'',i.aciklama||'',i.tutar||0];
+    })
+  ];
+  downloadXlsx(data,`kasa-rapor-${aktifKasa}-${bas}-${bit}.xlsx`,`${aktifKasa} Rapor`);
 };
 
 window.kasaIslemAc = (kasa) => {
@@ -2363,14 +2361,10 @@ window.loadStokRapor=async()=>{
 
 window.stokRaporExcel=()=>{
   if(!_srSonuclar.length){showToast('Önce sorgulayınız.');return;}
-  const rows=[['Firma','Ürün','Birim','Miktar','Birim Fiyat','Toplam Tutar','Tarih','Kullanıcı']];
-  _srSonuclar.forEach(s=>rows.push([s.firma_ad,s.urun_ad,s.birim,s.miktar,s.birim_fiyat?.toFixed(4)||'',s.toplam_tutar?.toFixed(2)||'',fmtDate(s.zaman),s.kullanici||'']));
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='stok-rapor.csv';a.click();
-  URL.revokeObjectURL(url);
+  const data=[['Firma','Ürün','Birim','Miktar','Birim Fiyat','Toplam Tutar','Tarih','Kullanıcı'],
+    ..._srSonuclar.map(s=>[s.firma_ad,s.urun_ad,s.birim,s.miktar,s.birim_fiyat?.toFixed(4)||'',s.toplam_tutar?.toFixed(2)||'',fmtDate(s.zaman),s.kullanici||''])
+  ];
+  downloadXlsx(data,'stok-rapor.xlsx','Stok Rapor');
 };
 
 // ── RAPOR (Madde 4) ──
@@ -2609,16 +2603,15 @@ window.islemCsvExport=async()=>{
   if(state.csvTur!=='hepsi') rows=rows.filter(i=>i.tur===state.csvTur||(state.csvTur==='transfer'&&i.tur==='transfer_alici'));
   const secilenKat=document.getElementById('csv-kategori')?.value||'';
   if(secilenKat) rows=rows.filter(i=>i.kategori===secilenKat);
-  const header='tarih,gb_tarihi,islem_turu,kasa,kategori,aciklama,tutar,kullanici\n';
-  const csv=header+rows.map(i=>{
-    let tarihStr='';
-    if(i.zaman){
-      try{const d=i.zaman.toDate?i.zaman.toDate():(i.zaman.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));tarihStr=d.toLocaleDateString('tr-TR');}catch(e){}
-    }
-    const kasa=i.kasa||(i.kasadan&&i.kasaya?(i.kasadan+'>'+i.kasaya):'');
-    return [tarihStr,i.gb_tarihi||'',i.tur,kasa,i.kategori||'',`"${(i.aciklama||'').replace(/"/g,'""')}"`,i.tutar||0,i.kullanici||''].join(',');
-  }).join('\n');
-  downloadCsv(csv,`islemler_${start}_${end}.csv`);
+  const data=[['Tarih','GB Tarihi','İşlem Türü','Kasa','Kategori','Açıklama','Tutar','Kullanıcı'],
+    ...rows.map(i=>{
+      let tarihStr='';
+      if(i.zaman){try{const d=i.zaman.toDate?i.zaman.toDate():(i.zaman.seconds?new Date(i.zaman.seconds*1000):new Date(i.zaman));tarihStr=d.toLocaleDateString('tr-TR');}catch(e){}}
+      const kasa=i.kasa||(i.kasadan&&i.kasaya?(i.kasadan+'>'+i.kasaya):'');
+      return [tarihStr,i.gb_tarihi||'',i.tur,kasa,i.kategori||'',i.aciklama||'',i.tutar||0,i.kullanici||''];
+    })
+  ];
+  downloadXlsx(data,`islemler_${start}_${end}.xlsx`,'İşlemler');
 };
 
 window.stokCsvExport=async()=>{
@@ -2629,17 +2622,19 @@ window.stokCsvExport=async()=>{
   const endTs=Timestamp.fromDate(new Date(end+'T23:59:59'));
   const snap=await getDocs(query(collection(db,'stok'),where('zaman','>=',startTs),where('zaman','<=',endTs),orderBy('zaman','asc')));
   const rows=snap.docs.map(d=>d.data());
-  const header='tarih,gb_tarihi,urun,paket_turu,paket_adedi,toplam,birim,kullanici\n';
-  const csv=header+rows.map(i=>[fmtDate(i.zaman),i.gb_tarihi||'',i.urun,i.paket_turu,i.paket_adedi,i.toplam,i.birim,i.kullanici].join(',')).join('\n');
-  downloadCsv(csv,`stok_${start}_${end}.csv`);
+  const data=[['Tarih','GB Tarihi','Ürün','Paket Türü','Paket Adedi','Toplam','Birim','Kullanıcı'],
+    ...rows.map(i=>[fmtDate(i.zaman),i.gb_tarihi||'',i.urun,i.paket_turu,i.paket_adedi,i.toplam,i.birim,i.kullanici])
+  ];
+  downloadXlsx(data,`stok_${start}_${end}.xlsx`,'Stok');
 };
 
-function downloadCsv(csv,filename){
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=filename; a.click();
-  URL.revokeObjectURL(url);
-  showToast('CSV indirildi ✓');
+function downloadXlsx(data,filename,sheetName='Rapor'){
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=data[0].map((_,ci)=>({wch:Math.max(10,...data.map(r=>String(r[ci]??'').length))}));
+  XLSX.utils.book_append_sheet(wb,ws,sheetName);
+  XLSX.writeFile(wb,filename);
+  showToast('Excel indirildi ✓');
 }
 
 // ── KULLANICI YÖNETİMİ (Madde 5) ──
@@ -3411,6 +3406,13 @@ window.goPage=page=>{
   const navBtn=document.getElementById('nav-'+page);
   if(navBtn) navBtn.classList.add('active');
   if(page==='islemler'){
+    const todayStr=new Date().toISOString().split('T')[0];
+    const weekAgo=new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    const weekAgoStr=weekAgo.toISOString().split('T')[0];
+    const basEl=document.getElementById('islemler-bas');
+    const bitEl=document.getElementById('islemler-bit');
+    if(basEl&&!basEl.value) basEl.value=weekAgoStr;
+    if(bitEl&&!bitEl.value) bitEl.value=todayStr;
     if(!state.gunluk.length){
       loadGunluk().then(()=>renderIslemlerPage());
     } else {
