@@ -1234,7 +1234,14 @@ async function renderIslemlerPage(){
   const islemler=state.allIslemler.filter(i=>i.tur!=='yk_gider_gelir').map(i=>({...i,_tip:'islem'}));
   const gunlukKayitlar=state.gunluk.map(g=>({...g,_tip:'gunluk'}));
   const hepsi=[...islemler,...gunlukKayitlar]
-    .sort((a,b)=>(b.zaman?.seconds||0)-(a.zaman?.seconds||0))
+    .sort((a,b)=>{
+      const diff=(b.zaman?.seconds||0)-(a.zaman?.seconds||0);
+      if(diff!==0) return diff;
+      // Aynı saniyeye düşerse gunluk (GS/GB) öne al
+      if(a._tip==='gunluk'&&b._tip!=='gunluk') return -1;
+      if(b._tip==='gunluk'&&a._tip!=='gunluk') return 1;
+      return 0;
+    })
     .slice(0,50);
 
   if(!hepsi.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz kayıt yok</div>';return;}
