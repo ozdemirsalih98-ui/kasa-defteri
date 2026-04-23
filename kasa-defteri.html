@@ -480,14 +480,39 @@
         <button class="btn btn-primary" onclick="islemKaydet()">Kaydet</button>
       </div>
 
-      <!-- KASA HAREKETLERİ (son GB'den itibaren) -->
+      <!-- KASA HAREKETLERİ -->
       <div style="margin-top:20px">
-        <div class="section-title" id="kasa-har-baslik">Son GB'den İtibaren Hareketler</div>
+        <div class="section-title" id="kasa-har-baslik">Hareketler</div>
         <div class="card">
           <div class="card-body" id="kasa-har-liste" style="padding:0 16px">
             <div class="empty-state"><span class="emoji">📋</span>Kasa seçilmedi</div>
           </div>
         </div>
+      </div>
+
+      <!-- KASA RAPOR -->
+      <div style="margin-top:16px">
+        <div class="section-title">Rapor</div>
+        <div class="card">
+          <div class="card-body">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <div style="flex:1"><label class="form-label">Başlangıç</label><input class="form-control" type="date" id="rapor-bas"></div>
+              <div style="flex:1"><label class="form-label">Bitiş</label><input class="form-control" type="date" id="rapor-bit"></div>
+            </div>
+            <div class="seg-control" id="rapor-tur-seg" style="margin-bottom:12px">
+              <button class="seg-btn active" onclick="raporTurSec('tumu',this)">Tümü</button>
+              <button class="seg-btn" onclick="raporTurSec('gelir',this)">Gelir</button>
+              <button class="seg-btn" onclick="raporTurSec('gider',this)">Gider</button>
+              <button class="seg-btn" onclick="raporTurSec('transfer',this)">Transfer</button>
+            </div>
+            <div id="rapor-subfiltre" style="margin-bottom:12px;display:none">
+              <label class="form-label" id="rapor-subfiltre-label">Kategori</label>
+              <select class="form-control" id="rapor-alt-sec"></select>
+            </div>
+            <button class="btn btn-primary" style="width:100%" onclick="kasaRaporListele()">Listele</button>
+          </div>
+        </div>
+        <div id="kasa-rapor-sonuc" style="margin-top:12px"></div>
       </div>
     </div>
 
@@ -1511,30 +1536,28 @@ function renderKasaHareketleri(kasa) {
   if (!baslikEl || !listeEl) return;
 
   const gbTarih = state.aktifGB ? state.aktifGB.tarih : null;
-  baslikEl.textContent = gbTarih
-    ? kasa + ' — ' + gbTarih + " GB'den İtibaren"
-    : kasa + ' — Hareketler';
-
-  // allIslemler yoksa islemler'i kullan (en azından mevcut günü göster)
   const kaynak = state.allIslemler || state.islemler;
-
-  // Son GB zamanından büyük olan işlemleri filtrele
   const gbZaman = state.aktifGB ? state.aktifGB.zaman : null;
 
-  const kasaIs = kaynak.filter(i => {
+  let kasaIs = kaynak.filter(i => {
     if (i.tur === 'yk_gider_gelir') return false;
-    // GB sonrası filtresi
-    if (gbZaman && i.zaman) {
+    if (kasa === 'YK' && gbZaman && i.zaman) {
       const iSec = i.zaman.seconds ?? (i.zaman.toDate ? i.zaman.toDate().getTime()/1000 : 0);
       const gbSec = gbZaman.seconds ?? (gbZaman.toDate ? gbZaman.toDate().getTime()/1000 : 0);
       if (iSec <= gbSec) return false;
     }
-    // Bu kasayla ilgili mi?
     if (i.kasa === kasa) return true;
     if (i.tur === 'transfer'       && i.kasadan === kasa) return true;
     if (i.tur === 'transfer_alici' && i.kasaya  === kasa) return true;
     return false;
   });
+
+  if (kasa === 'YK') {
+    baslikEl.textContent = gbTarih ? `YK — ${gbTarih} GB'den İtibaren` : 'YK — Hareketler';
+  } else {
+    baslikEl.textContent = `${kasa} — Son 5 İşlem`;
+    kasaIs = kasaIs.slice(0, 5);
+  }
 
   if (!kasaIs.length) {
     listeEl.innerHTML = '<div class="empty-state"><span class="emoji">📭</span>Bu GB\'den sonra hareket yok</div>';
@@ -1559,6 +1582,77 @@ function renderKasaHareketleri(kasa) {
   listeEl.innerHTML = ozet + kasaIs.map(i => islemItemHTML(i)).join('');
 }
 
+let raporAktifTur='tumu';
+
+window.raporTurSec=(tur,btn)=>{
+  raporAktifTur=tur;
+  document.querySelectorAll('#rapor-tur-seg .seg-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const subEl=document.getElementById('rapor-subfiltre');
+  const subSel=document.getElementById('rapor-alt-sec');
+  const subLabel=document.getElementById('rapor-subfiltre-label');
+  if(tur==='gelir'){
+    subEl.style.display='block';
+    subLabel.textContent='Kategori';
+    subSel.innerHTML='<option value="">Tümü</option>'+(state.kategoriler?.gelir||[]).map(k=>`<option value="${k}">${k}</option>`).join('');
+  } else if(tur==='gider'){
+    subEl.style.display='block';
+    subLabel.textContent='Kategori';
+    subSel.innerHTML='<option value="">Tümü</option>'+(state.kategoriler?.gider||[]).map(k=>`<option value="${k}">${k}</option>`).join('');
+  } else if(tur==='transfer'){
+    subEl.style.display='block';
+    subLabel.textContent='Alıcı Kasa';
+    subSel.innerHTML='<option value="">Tümü</option>'+(state.kasalar||[]).filter(k=>k!==aktifKasa).map(k=>`<option value="${k}">${k} — ${kasaLabel(k)}</option>`).join('');
+  } else {
+    subEl.style.display='none';
+  }
+};
+
+window.kasaRaporListele=async()=>{
+  const bas=document.getElementById('rapor-bas').value;
+  const bit=document.getElementById('rapor-bit').value;
+  const sonucEl=document.getElementById('kasa-rapor-sonuc');
+  if(!bas||!bit){showToast('Tarih aralığı seçiniz');return;}
+  sonucEl.innerHTML='<div class="loader"><div class="spinner"></div></div>';
+  try{
+    const startTs=Timestamp.fromDate(new Date(bas+'T00:00:00'));
+    const endTs=Timestamp.fromDate(new Date(bit+'T23:59:59'));
+    const snap=await getDocs(query(collection(db,'islemler'),where('zaman','>=',startTs),where('zaman','<=',endTs),orderBy('zaman','desc')));
+    const kasa=aktifKasa;
+    let rows=snap.docs.map(d=>({id:d.id,...d.data()})).filter(i=>i.tur!=='yk_gider_gelir').filter(i=>{
+      if(i.kasa===kasa) return true;
+      if(i.tur==='transfer'&&i.kasadan===kasa) return true;
+      if(i.tur==='transfer_alici'&&i.kasaya===kasa) return true;
+      return false;
+    });
+    const altSec=document.getElementById('rapor-alt-sec').value;
+    if(raporAktifTur==='gelir'){
+      rows=rows.filter(i=>i.tur==='gelir'&&i.kasa===kasa);
+      if(altSec) rows=rows.filter(i=>i.kategori===altSec);
+    } else if(raporAktifTur==='gider'){
+      rows=rows.filter(i=>i.tur==='gider'&&i.kasa===kasa);
+      if(altSec) rows=rows.filter(i=>i.kategori===altSec);
+    } else if(raporAktifTur==='transfer'){
+      rows=rows.filter(i=>i.tur==='transfer'&&i.kasadan===kasa);
+      if(altSec) rows=rows.filter(i=>i.kasaya===altSec);
+    }
+    if(!rows.length){sonucEl.innerHTML='<div class="empty-state"><span class="emoji">📭</span>Sonuç bulunamadı</div>';return;}
+    let topGelir=0,topGider=0;
+    rows.forEach(i=>{
+      if(i.tur==='gelir'&&i.kasa===kasa) topGelir+=i.tutar;
+      if(i.tur==='gider'&&i.kasa===kasa) topGider+=i.tutar;
+      if(i.tur==='transfer'&&i.kasadan===kasa) topGider+=i.tutar;
+      if(i.tur==='transfer_alici'&&i.kasaya===kasa) topGelir+=i.tutar;
+    });
+    const ozet=`<div class="card" style="margin-bottom:8px"><div class="card-body" style="display:flex;gap:10px;align-items:center;padding:10px 16px">
+      <span style="flex:1;font-size:12px;font-weight:800;color:var(--green)">↑ Giren: ${fmt(topGelir)}</span>
+      <span style="flex:1;font-size:12px;font-weight:800;color:var(--red)">↓ Çıkan: ${fmt(topGider)}</span>
+      <span style="font-size:11px;color:var(--text-muted)">${rows.length} işlem</span>
+    </div></div>`;
+    sonucEl.innerHTML=ozet+'<div class="card"><div class="card-body" style="padding:0 16px">'+rows.map(i=>islemItemHTML(i)).join('')+'</div></div>';
+  }catch(e){sonucEl.innerHTML='<div class="empty-state">Hata: '+e.message+'</div>';}
+};
+
 window.kasaIslemAc = (kasa) => {
   // Gelir/transfer butonlarını sıfırla (stok ödemesinden gelmiş olabilir)
   ['seg-gelir','seg-transfer'].forEach(id=>{
@@ -1579,6 +1673,16 @@ window.kasaIslemAc = (kasa) => {
   setTur(varsayilanTur);
   // Kasa hareketlerini render et
   renderKasaHareketleri(kasa);
+  // Rapor bölümünü sıfırla
+  const today = new Date().toISOString().split('T')[0];
+  const gbTarih = state.aktifGB?.tarih || today;
+  const basEl = document.getElementById('rapor-bas');
+  const bitEl = document.getElementById('rapor-bit');
+  if(basEl) basEl.value = gbTarih;
+  if(bitEl) bitEl.value = today;
+  raporTurSec('tumu', document.querySelector('#rapor-tur-seg .seg-btn'));
+  const sonucEl = document.getElementById('kasa-rapor-sonuc');
+  if(sonucEl) sonucEl.innerHTML = '';
 };
 
 // ── KASA DRAWER ──
