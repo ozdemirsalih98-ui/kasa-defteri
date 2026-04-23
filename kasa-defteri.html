@@ -510,7 +510,10 @@
               <label class="form-label" id="rapor-subfiltre-label">Kategori</label>
               <select class="form-control" id="rapor-alt-sec"></select>
             </div>
-            <button class="btn btn-primary" style="width:100%" onclick="kasaRaporListele()">Listele</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" style="flex:1" onclick="kasaRaporListele()">Listele</button>
+              <button class="btn btn-outline btn-sm" id="kasa-rapor-excel-btn" style="display:none" onclick="kasaRaporExcel()">Excel</button>
+            </div>
           </div>
         </div>
         <div id="kasa-rapor-sonuc" style="margin-top:12px"></div>
@@ -723,6 +726,7 @@ let state = {
   aktifGS: null,
   csvTur: 'hepsi',
   odemeler: [],      // /odemeler koleksiyonu
+  isAdmin: false,
 };
 
 // ── HELPERS ──
@@ -777,6 +781,7 @@ async function tryAutoLogin(){
         const found=liste.find(x=>x.ad===d.u&&String(x.sifre)===d.p);
         if(found){
           state.kullanici=d.u;
+          state.isAdmin=found.admin===true;
           document.getElementById('login-screen').style.display='none';
           await initApp();
           return;
@@ -804,6 +809,7 @@ window.doLogin = async () => {
     const found=liste.find(x=>x.ad===u&&String(x.sifre)===p);
     if(!found){ errEl.textContent='Kullanıcı adı veya şifre yanlış.'; errEl.style.display='flex'; return; }
     state.kullanici=u;
+    state.isAdmin=found.admin===true;
     if(remember) saveRemembered(u,p); else clearRemembered();
     document.getElementById('login-screen').style.display='none';
     await initApp();
@@ -1258,7 +1264,7 @@ window.confirmIslemKaydet=async()=>{
 
 // ── İşlemler sayfası — tek liste ──
 
-async function renderIslemlerPage(){
+function renderIslemlerPage(){
   const el=document.getElementById('islemler-liste');
   el.innerHTML='<div class="loader"><div class="spinner"></div></div>';
 
@@ -1282,10 +1288,7 @@ async function renderIslemlerPage(){
   if(!hepsi.length){el.innerHTML='<div class="empty-state"><span class="emoji">📋</span>Henüz kayıt yok</div>';return;}
 
   const gsZamanlar=state.gunluk.filter(g=>g.tur==='GS'&&g.zaman).map(g=>g.zaman.seconds);
-  const kullaniciSnap=await getDoc(doc(db,'config','kullanicilar')).catch(()=>null);
-  const kullanicilar=kullaniciSnap&&kullaniciSnap.exists()?(kullaniciSnap.data().liste||[]):[];
-  const aktifKullaniciObj=kullanicilar.find(x=>x.ad===state.kullanici);
-  const isAdmin=aktifKullaniciObj?.admin===true;
+  const isAdmin=state.isAdmin;
 
   el.innerHTML=hepsi.map(kayit=>{
     if(kayit._tip==='gunluk'){
@@ -1658,10 +1661,15 @@ window.kasaRaporListele=async()=>{
       <span style="flex:1;font-size:12px;font-weight:800;color:var(--green)">↑ Giren: ${fmt(topGelir)}</span>
       <span style="flex:1;font-size:12px;font-weight:800;color:var(--red)">↓ Çıkan: ${fmt(topGider)}</span>
       <span style="font-size:11px;color:var(--text-muted)">${rows.length} işlem</span>
-      <button class="btn btn-ghost" style="font-size:12px;padding:4px 10px;flex-shrink:0" onclick="kasaRaporExcel()">Excel'e Aktar</button>
     </div></div>`;
     sonucEl.innerHTML=ozet+'<div class="card"><div class="card-body" style="padding:0 16px">'+rows.map(i=>islemItemHTML(i)).join('')+'</div></div>';
-  }catch(e){sonucEl.innerHTML='<div class="empty-state">Hata: '+e.message+'</div>';}
+    const excelBtn=document.getElementById('kasa-rapor-excel-btn');
+    if(excelBtn) excelBtn.style.display=rows.length?'':'none';
+  }catch(e){
+    sonucEl.innerHTML='<div class="empty-state">Hata: '+e.message+'</div>';
+    const excelBtn=document.getElementById('kasa-rapor-excel-btn');
+    if(excelBtn) excelBtn.style.display='none';
+  }
 };
 
 window.kasaRaporExcel=()=>{
